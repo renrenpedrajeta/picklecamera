@@ -141,7 +141,7 @@ export default function RecordingPanel({ email }: { email: string }) {
                   <p>{court.location || "Casa Batik"}</p>
                   <div className="camera-label">
                     {court.camera_status === "online"
-                      ? "Camera ready"
+                      ? "Last connection check passed"
                       : court.camera_status === "busy"
                         ? "Recording in progress"
                         : "Ask the admin to connect and test the camera"}

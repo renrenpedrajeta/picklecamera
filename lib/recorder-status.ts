@@ -11,7 +11,6 @@ export function cameraOnline(camera: Camera, recorders: Recorder[]) {
     camera.enabled &&
     camera.health === "online" &&
     !!camera.last_health_check_at &&
-    Date.now() - Date.parse(camera.last_health_check_at) < 300000 &&
     recorderOnline(recorders.find((r) => r.id === camera.recorder_id))
   );
 }

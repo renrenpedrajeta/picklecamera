@@ -134,9 +134,9 @@ export default function RecorderControls({
       )}
       <h3>Discovered devices</h3>
       <p className="form-note">
-        A connection test reads and discards one video frame. Results expire
-        after five minutes. Network cameras may need local credentials before
-        testing.
+        A connection test reads and discards one video frame. A successful check
+        remains valid while the recorder is connected. Retest after changing the
+        device or if capture fails. Network cameras may need local credentials.
       </p>
       <div className="discovered-devices">
         {data.devices
@@ -147,18 +147,13 @@ export default function RecorderControls({
                 c.recorder_id === recorder.id &&
                 c.device_reference === device.device_reference,
             );
-            const fresh =
-              !!device.last_test_at &&
-              Date.now() - Date.parse(device.last_test_at) < 300000;
             return (
               <article key={device.id}>
                 <strong>{device.name}</strong>
                 <small>
                   {device.source_type === "usb" ? "USB" : "Wi-Fi / Ethernet"} ·{" "}
                   {diagnostics[device.diagnostic] || "Unknown"}
-                  {device.last_test_at && (!fresh || !online)
-                    ? " · Retest required"
-                    : ""}
+                  {!online ? " · Recorder offline" : ""}
                 </small>
                 <code>{device.device_reference}</code>
                 <div className="recorder-actions">

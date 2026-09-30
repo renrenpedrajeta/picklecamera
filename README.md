@@ -61,7 +61,7 @@ The venue PC must stay awake, have Node.js and this repository installed, and sh
 4. Run `npm run recorder -- start` and leave it running. The dashboard refreshes every ten seconds. A recorder becomes offline after 45 seconds without a heartbeat.
 5. Click **Discover cameras**. USB cameras and ONVIF cameras advertising on the local network appear under the selected recorder. Discovery does not open a video feed. ONVIF must be enabled on the camera; guest Wi-Fi isolation, VLAN separation, firewalls and proprietary cloud-only cameras may prevent discovery.
 6. For network credentials, stop the recorder with Ctrl+C, run `npm run recorder -- configure DEVICE_REFERENCE`, and answer the prompts locally. For a camera that cannot be discovered, omit the reference and enter its RTSP URL. Restart the service and discover again. `npm run recorder -- discover` can also enumerate devices locally before pairing.
-7. Click **Assign to court**, choose the court, enable its primary camera, and save. Then **Test connection**. This opens the feed briefly, decodes one video frame, and discards it; no clip, image or audio is saved or uploaded. A passing result is valid for five minutes and only while the recorder is connected. Retest after registration or a device change.
+7. Click **Assign to court**, choose the court, enable its primary camera, and save. Then **Test connection**. This opens the feed briefly, decodes one video frame, and discards it; no clip, image or audio is saved or uploaded. A passing result remains valid while the recorder is connected. Starting a recording opens the camera again and confirms frames before reporting Recording. Retest after registration or a device change.
 
 The service currently supports Windows USB via DirectShow and ONVIF/RTSP network cameras. The number of cameras is configurable; each discovery is capped at 64 devices to bound payloads. Network credentials and the scoped machine token live in `.local/recorder/config.json`, protected with Windows account ACLs and excluded from Git. Do not copy this file into cloud hosting. Stop the service before local configuration changes. `CASA_RECORDER_HOME` can specify a different protected local directory.
 
@@ -72,7 +72,7 @@ Discovery/test commands use 90-second leases, at most three attempts, and a ten-
 ## Test a match recording
 
 1. Run migrations and restart the local recorder after updating the code. Its dashboard version should be `0.3.0`.
-2. Ensure the court has an enabled primary camera. Run **Test connection** if its health check is older than five minutes.
+2. Ensure the court has an enabled primary camera. Run **Test connection** if the camera has not passed a check or its last capture failed.
 3. Sign in as the demo player, select **Court 1**, then click **Start recording**. Wait for **Recording** before playing.
 4. Click **Stop recording**. The UI will show **Saved locally** when finalization is confirmed. Closing/reloading the browser does not stop capture; reopening the page restores the active session.
 5. On the recorder PC, open `.local/recorder/captures/<session-id>/video.mp4` to play the clip. The admin Recording logs show the session ID. Local files are private and are not served by the web app. Google Drive viewing/email will be implemented next.
@@ -85,7 +85,7 @@ An active capture lock is deliberately not released merely because its heartbeat
 
 ## Verification
 
-`npm test` runs validation, hardware-parser and SQL migration tests in an isolated PostgreSQL engine (PGlite), including pairing expiry/replay, command leases, recorder isolation, health expiry, roles, session isolation and camera constraints. The test bootstrap models Supabase auth roles; production checks also run against the configured Supabase project.
+`npm test` runs validation, hardware-parser and SQL migration tests in an isolated PostgreSQL engine (PGlite), including pairing expiry/replay, command leases, recorder isolation, recorder heartbeat expiry, roles, session isolation and camera constraints. The test bootstrap models Supabase auth roles; production checks also run against the configured Supabase project.
 
 With the local web app running, explicitly run this integration check:
 

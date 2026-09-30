@@ -157,7 +157,14 @@ test("recorder pairing, leases, result isolation, RLS and stale health", async (
     );
     assert.equal(
       await value("select camera_status from public.player_court_status()"),
+      "online",
+      "a past successful check remains valid with a connected recorder",
+    );
+    await db.exec("update public.cameras set health='offline'");
+    assert.equal(
+      await value("select camera_status from public.player_court_status()"),
       "offline",
+      "a failed check still blocks recording",
     );
     job = await queue("test");
     await db.exec(

@@ -50,6 +50,14 @@ test("capture requests enforce locks, privacy, snapshots, idempotency and termin
         )
       ).rows[0].id;
     }
+    await db.exec("update public.cameras set health='offline'");
+    await assert.rejects(() => start(), /connection test/);
+    await db.exec("update public.cameras set health='online',last_health_check_at=null");
+    await assert.rejects(() => start(), /connection test/);
+    await db.exec("update public.cameras set last_health_check_at=now()-interval '1 day'");
+    await db.exec("update public.recorders set last_seen_at=now()-interval '46 seconds'");
+    await assert.rejects(() => start(), /offline/);
+    await db.exec("update public.recorders set last_seen_at=now()");
     const session = await start();
     assert.equal(await start(), session);
     await assert.rejects(() => start(other, randomUUID()), /already recording/);
