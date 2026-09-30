@@ -53,7 +53,7 @@ export function parseUsb(output) {
         input: name[1],
       };
       devices.push(current);
-    } else if (/\(audio\)/.test(line)) current = undefined;
+    } else if (/"[^"]+" \([^)]+\)/.test(line)) current = undefined;
     else {
       const alternative = line.match(/Alternative name "([^"]+)"/);
       if (alternative && current) current.input = alternative[1];

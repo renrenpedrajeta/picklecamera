@@ -18,6 +18,15 @@ test("DirectShow parser keeps duplicate camera names distinct and excludes micro
     undefined,
   );
 });
+test("inactive virtual devices cannot overwrite the preceding webcam address", () => {
+  const devices = parseUsb(
+    '[dshow] "EMEET" (video)\n[dshow] Alternative name "@physical"\n[dshow] "ByteCast VirtualCamera1" (none)\n[dshow] Alternative name "@inactive1"\n[dshow] "ByteCast VirtualCamera2" (none)\n[dshow] Alternative name "@inactive2"\n[dshow] "OBS" (video)\n[dshow] Alternative name "@obs"',
+  );
+  assert.equal(devices.length, 2);
+  assert.equal(devices[0].input, "@physical");
+  assert.equal(devices[1].input, "@obs");
+  assert.equal(devices[0].device_reference, parseUsb('[dshow] "EMEET" (video)\n[dshow] Alternative name "@physical"')[0].device_reference);
+});
 test("camera addresses cannot use file or FFmpeg pseudo protocols", () => {
   for (const url of ["file:///private", "concat:secret", "http://example.com"])
     assert.throws(() => cameraUrl(url, ["rtsp:", "rtsps:"]));
