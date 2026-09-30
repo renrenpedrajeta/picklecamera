@@ -6,6 +6,7 @@ type Court = {
   name: string;
   location: string;
   camera_status: string;
+  audio_enabled: boolean;
 };
 type Session = {
   id: string;
@@ -18,6 +19,7 @@ type Session = {
   duration_seconds: number;
   stop_reason: string | null;
   recorder_online: boolean;
+  audio_enabled: boolean;
 };
 type Snapshot = { courts: Court[]; sessions: Session[]; maxSeconds: number };
 const activeStates = ["requested", "starting", "recording", "finalizing"];
@@ -238,7 +240,7 @@ export default function RecordingPanel({ email }: { email: string }) {
             </p>
           )}
           <p className="form-note">
-            Video only. Clips are saved securely on the venue computer. Google
+            {(active ? active.audio_enabled : selected?.audio_enabled) ? "Microphone on — video and audio will be recorded." : "Video only — microphone off."} Clips are saved securely on the venue computer. Google
             Drive playback and email delivery will be added next.
           </p>
         </aside>

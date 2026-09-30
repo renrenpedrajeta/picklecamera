@@ -11,16 +11,21 @@ test("inventory strips local credentials, rejects duplicates, and limits payload
     source_type: "usb",
     health: "online",
     diagnostic: "connected",
+    audio_sources: [{device_reference: "mic-123456789012345678901234", name: "Camera microphone", input: "@private-windows-path"}],
     password: "local-only",
     stream: "rtsp://private",
   };
   assert.deepEqual(Object.keys(inventoryInput([device])[0]).sort(), [
+    "audio_source",
+    "audio_sources",
     "device_reference",
     "diagnostic",
     "health",
     "name",
     "source_type",
   ]);
+  assert.deepEqual(inventoryInput([device])[0].audio_sources, [{device_reference: "mic-123456789012345678901234", name: "Camera microphone"}]);
+  assert.throws(() => inventoryInput([{...device, audio_sources: [{device_reference: "file:///private", name: "Mic"}]}]));
   assert.throws(() => inventoryInput([device, device]));
   assert.throws(() => inventoryInput(Array(65).fill(device)));
   assert.throws(() =>
@@ -182,6 +187,13 @@ test("recorder pairing, leases, result isolation, RLS and stale health", async (
       "stale lease cannot overwrite newer work",
     );
     assert.equal(await finish(retried), true);
+    await db.exec("update public.cameras set audio_source='mic-123456789012345678901234'");
+    job = await queue("test");
+    assert.equal(await finish(job), true);
+    assert.equal(await value("select health from public.cameras"), "unknown", "a test of the previous audio setting cannot validate the new selection");
+    job = await queue("test");
+    assert.equal(await finish(job, r, [{...device, audio_source: "mic-123456789012345678901234"}]), true);
+    assert.equal(await value("select health from public.cameras"), "online");
     await db.exec("update public.cameras set device_reference='usb-changed'");
     assert.equal(
       await value("select health from public.cameras"),

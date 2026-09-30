@@ -12,7 +12,7 @@ export async function GET() {
     db
       .from("recording_sessions")
       .select(
-        "id,court_id,status,started_at,created_at,stopped_at,stop_requested_at,duration_seconds,stop_reason",
+        "id,court_id,status,started_at,created_at,stopped_at,stop_requested_at,duration_seconds,stop_reason,configuration_snapshot",
       )
       .eq("player_id", account.id)
       .order("created_at", { ascending: false })
@@ -53,8 +53,9 @@ export async function GET() {
   );
   return json({
     courts: courts.data,
-    sessions: sessions.data.map((s) => ({
+    sessions: sessions.data.map(({ configuration_snapshot, ...s }) => ({
       ...s,
+      audio_enabled: configuration_snapshot?.audio_enabled === true,
       recorder_online: online.get(s.id) ?? false,
     })),
     maxSeconds: settings.data.max_duration_seconds,

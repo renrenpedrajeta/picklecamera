@@ -140,6 +140,9 @@ function CameraForm({
   device?: Device;
   data: AdminData;
 }) {
+  const [recorderId, setRecorderId] = useState(camera?.recorder_id || device?.recorder_id || "");
+  const [sourceType, setSourceType] = useState(camera?.source_type || device?.source_type || "network");
+  const microphones = [...new Map(data.devices.filter(d => d.recorder_id === recorderId).flatMap(d => d.audio_sources || []).map(m => [m.device_reference, m])).values()];
   return (
     <SaveForm
       resource="cameras"
@@ -150,6 +153,7 @@ function CameraForm({
         court_id: f.get("court_id"),
         source_type: f.get("source_type"),
         device_reference: f.get("device_reference"),
+        audio_source: f.get("audio_source"),
         is_primary: f.has("is_primary"),
         enabled: f.has("enabled"),
       })}
@@ -169,6 +173,7 @@ function CameraForm({
           Connection type
           <select
             name="source_type"
+            onChange={e => setSourceType(e.target.value as "usb" | "network")}
             defaultValue={
               camera?.source_type || device?.source_type || "network"
             }
@@ -181,6 +186,7 @@ function CameraForm({
           Venue recorder
           <select
             name="recorder_id"
+            onChange={e => setRecorderId(e.target.value)}
             defaultValue={camera?.recorder_id || device?.recorder_id || ""}
             required
           >
@@ -209,6 +215,15 @@ function CameraForm({
           A device identifier from the local service. Stream URLs and passwords
           stay on the venue computer.
         </span>
+      </label>
+      <label>
+        Recording audio
+        <select key={recorderId + sourceType} name="audio_source" defaultValue={camera?.audio_source || ""}>
+          <option value="">Off — video only</option>
+          {sourceType === "usb" && camera?.audio_source.startsWith("mic-") && !microphones.some(m => m.device_reference === camera.audio_source) && <option value={camera.audio_source}>Configured microphone (rediscover to check availability)</option>}
+          {sourceType === "network" ? <option value="stream">Camera stream microphone</option> : microphones.map(m => <option key={m.device_reference} value={m.device_reference}>{m.name}</option>)}
+        </select>
+        <span className="form-note">Discover cameras to refresh microphones. Save, then Test connection to check video and selected audio. Players see when audio is enabled.</span>
       </label>
       <label>
         Assigned court

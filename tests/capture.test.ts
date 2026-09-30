@@ -58,7 +58,15 @@ test("capture requests enforce locks, privacy, snapshots, idempotency and termin
     await db.exec("update public.recorders set last_seen_at=now()-interval '46 seconds'");
     await assert.rejects(() => start(), /offline/);
     await db.exec("update public.recorders set last_seen_at=now()");
+    const microphone = 'mic-123456789012345678901234';
+    await db.query("update public.cameras set audio_source=$1", [microphone]);
+    await assert.rejects(() => start(), /connection test/);
+    await db.exec("update public.cameras set health='online',last_health_check_at=now()");
+    await assert.rejects(() => start(), /offline or needs updating/);
+    await db.exec("update public.recorders set agent_version='0.4.0'");
     const session = await start();
+    assert.equal((await db.query<any>("select configuration_snapshot from public.recording_sessions where id=$1", [session])).rows[0].configuration_snapshot.audio_enabled, true);
+    await assert.rejects(() => db.exec("update public.cameras set audio_source=''"), /cannot change during capture/);
     assert.equal(await start(), session);
     await assert.rejects(() => start(other, randomUUID()), /already recording/);
     await assert.rejects(() => start(player, randomUUID()), /active recording/);
@@ -67,6 +75,7 @@ test("capture requests enforce locks, privacy, snapshots, idempotency and termin
       recorder,
     ]);
     const job = jobs.rows[0];
+    assert.equal(job.audio_source, microphone, "audio selection is snapshotted for the worker");
     assert.equal(job.max_seconds, 900, "duration is snapshotted at start");
     assert.equal(
       (

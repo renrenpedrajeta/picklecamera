@@ -263,7 +263,7 @@ async function main() {
           }
           const { command: job } = await api(config, "poll", {
             platform: process.platform,
-            version: "0.3.0",
+            version: "0.4.0",
             ffmpeg_available: available,
             capturing,
           });
@@ -284,7 +284,7 @@ async function main() {
                 );
                 if (!device)
                   throw new Error("Device missing. Rediscover cameras.");
-                devices = [await testDevice(device, available)];
+                devices = [await testDevice(device, available, job.audio_source || "")];
               } else throw new Error("Unsupported command.");
             } catch {
               success = false;

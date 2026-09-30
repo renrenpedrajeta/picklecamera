@@ -58,6 +58,9 @@ export function cameraInput(body: Record<string, unknown>) {
     throw new InputError(
       "Use a local device identifier, not a stream URL or password.",
     );
+  const audio = body.audio_source == null ? "" : String(body.audio_source);
+  if (audio && !(source === "network" ? audio === "stream" : /^mic-[a-f0-9]{24}$/.test(audio)))
+    throw new InputError("Choose a discovered microphone or network stream audio.");
   const court = body.court_id ? uuid(body.court_id) : null;
   const primary = bool(body.is_primary);
   if (primary && !court)
@@ -68,6 +71,7 @@ export function cameraInput(body: Record<string, unknown>) {
     court_id: court,
     device_reference: reference,
     source_type: source,
+    audio_source: audio,
     is_primary: primary,
     enabled: bool(body.enabled),
   };

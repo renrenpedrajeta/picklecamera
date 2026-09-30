@@ -20,6 +20,7 @@ export type Camera = {
   court_id: string | null;
   source_type: "network" | "usb";
   device_reference: string;
+  audio_source: string;
   is_primary: boolean;
   enabled: boolean;
   health: string;
@@ -34,6 +35,7 @@ export type Device = {
   health: string;
   diagnostic: string;
   last_test_at: string | null;
+  audio_sources: { device_reference: string; name: string }[];
 };
 export type RecorderCommand = {
   id: string;

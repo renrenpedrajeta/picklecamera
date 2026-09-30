@@ -7,6 +7,8 @@ import { run } from "./hardware.mjs";
 // Same engine is exercised with synthetic video in tests and real devices in the worker.
 export async function captureVideo({
   input,
+  audio = false,
+  audioMap = "0:a:0",
   video,
   maxSeconds,
   stopPath,
@@ -29,7 +31,7 @@ export async function captureVideo({
       ...input,
       "-map",
       "0:v:0",
-      "-an",
+      ...(audio ? ["-map", audioMap, "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-af", "aresample=async=1"] : ["-an"]),
       "-t",
       String(maxSeconds),
       "-vf",

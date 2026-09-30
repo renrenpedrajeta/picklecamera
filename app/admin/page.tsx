@@ -35,7 +35,7 @@ export default async function AdminPage() {
     db
       .from("cameras")
       .select(
-        "id,name,recorder_id,court_id,source_type,device_reference,is_primary,enabled,health,last_health_check_at",
+        "id,name,recorder_id,court_id,source_type,device_reference,audio_source,is_primary,enabled,health,last_health_check_at",
       )
       .order("name"),
     db
@@ -64,7 +64,7 @@ export default async function AdminPage() {
     db
       .from("recorder_devices")
       .select(
-        "id,recorder_id,device_reference,name,source_type,health,diagnostic,last_test_at",
+        "id,recorder_id,device_reference,name,source_type,health,diagnostic,last_test_at,audio_sources",
       )
       .order("name"),
     db

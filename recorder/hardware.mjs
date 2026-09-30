@@ -41,11 +41,12 @@ export function run(args, timeout = 15000) {
 export async function doctor() {
   return (await run(["-version"], 5000)).ok;
 }
-export function parseUsb(output) {
+export function parseUsb(output, kind = "video") {
   const devices = [];
   let current;
   for (const line of output.split(/\r?\n/)) {
-    const name = line.match(/"([^"]+)" \(video\)/);
+    const match = line.match(/"([^"]+)" \((video|audio)\)/);
+    const name = match?.[2] === kind ? match : null;
     if (name) {
       current = {
         name: name[1].slice(0, 100),
@@ -61,7 +62,7 @@ export function parseUsb(output) {
   }
   return devices.map((device) => ({
     ...device,
-    device_reference: ref("usb", device.input),
+    device_reference: ref(kind === "audio" ? "mic" : "usb", device.input),
   }));
 }
 export function cameraUrl(value, protocols) {
@@ -74,6 +75,7 @@ export function publicDevice(
   device,
   health = "unknown",
   diagnostic = "not_tested",
+  audioSource = "",
 ) {
   return {
     device_reference: device.device_reference,
@@ -81,6 +83,8 @@ export function publicDevice(
     source_type: device.source_type,
     health,
     diagnostic,
+    audio_source: audioSource,
+    audio_sources: (device.audio_sources || []).map(({ device_reference, name }) => ({ device_reference, name })),
   };
 }
 onvif.Discovery.on("error", () => {});
@@ -142,7 +146,7 @@ export async function discover(existing) {
     result.status === "fulfilled" ? result.value : [],
   );
   const found = [
-    ...parseUsb(usb.output),
+    ...parseUsb(usb.output).map(device => ({ ...device, audio_sources: parseUsb(usb.output, "audio") })),
     ...network,
     ...existing.filter((d) => d.manual),
   ];
@@ -169,11 +173,13 @@ export function mergeDevices(existing, found) {
     throw new Error("Discovery exceeds the 64-device safety limit.");
   return [...unique.values()];
 }
-export async function cameraInput(device) {
+export async function cameraInput(device, audioSource = "") {
   let input;
   if (device.source_type === "usb") {
     if (process.platform !== "win32") throw new Error("unsupported_platform");
-    input = ["-f", "dshow", "-i", `video=${device.input}`];
+    const microphone = audioSource && device.audio_sources?.find(d => d.device_reference === audioSource);
+    if (audioSource && !microphone) throw new Error("device_missing");
+    input = ["-f", "dshow", "-i", `video=${device.input}${microphone ? ":audio=" + microphone.input : ""}`];
   } else {
     let stream = device.stream;
     if (!stream && device.endpoint && device.username !== undefined) {
@@ -203,20 +209,19 @@ export async function cameraInput(device) {
   }
   return input;
 }
-export async function testDevice(device, ffmpegAvailable) {
+export async function testDevice(device, ffmpegAvailable, audioSource = "") {
   if (!ffmpegAvailable)
-    return publicDevice(device, "offline", "ffmpeg_missing");
+    return publicDevice(device, "offline", "ffmpeg_missing", audioSource);
   try {
-    const input = await cameraInput(device);
+    const input = await cameraInput(device, audioSource);
     const result = await run([
       "-nostdin",
       "-hide_banner",
       "-loglevel",
       "error",
       ...input,
-      "-an",
-      "-frames:v",
-      "1",
+      "-map", "0:v:0",
+      ...(audioSource ? ["-map", "0:a:0", "-t", "2"] : ["-an", "-frames:v", "1"]),
       "-f",
       "null",
       "-",
@@ -225,12 +230,13 @@ export async function testDevice(device, ffmpegAvailable) {
       device,
       result.ok ? "online" : "offline",
       result.ok ? "connected" : "unreachable",
+      audioSource,
     );
   } catch (error) {
     if (error.message === "needs_configuration")
-      return publicDevice(device, "needs_configuration", "needs_configuration");
+      return publicDevice(device, "needs_configuration", "needs_configuration", audioSource);
     if (error.message === "unsupported_platform")
-      return publicDevice(device, "offline", "unsupported_platform");
-    return publicDevice(device, "offline", "unreachable");
+      return publicDevice(device, "offline", "unsupported_platform", audioSource);
+    return publicDevice(device, "offline", "unreachable", audioSource);
   }
 }

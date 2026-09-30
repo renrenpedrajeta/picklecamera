@@ -67,7 +67,7 @@ try {
   assert.equal(court.error, null);
   const camera = await db
     .from("cameras")
-    .select("id,recorder_id,device_reference")
+    .select("id,recorder_id,device_reference,audio_source")
     .eq("court_id", court.data.id)
     .eq("is_primary", true)
     .eq("enabled", true)
@@ -182,6 +182,8 @@ try {
     ).ok,
     "Saved clip must decode fully",
   );
+  const audioDecoded = await run(["-nostdin", "-v", "error", "-i", video, "-map", "0:a:0", "-f", "null", "-"], 30000);
+  assert.equal(audioDecoded.ok, !!camera.data.audio_source, "Saved audio must match the camera setting");
   console.log(
     `PASS: real webcam capture, duplicate start, second-player exclusion, private status, recorder restart, manual stop, and full MP4 decode. Saved locally: ${video}`,
   );

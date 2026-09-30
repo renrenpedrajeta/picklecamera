@@ -56,3 +56,13 @@ test("discovery preserves local credentials and names while distinguishing absen
   assert.equal(returned[0].name, "Court camera");
   assert.equal(returned[0].endpoint, "http://new/onvif");
 });
+
+test("microphone discovery separates duplicate names and keeps native paths local", () => {
+  const devices = parseUsb('[dshow] "Mic" (audio)\n[dshow] Alternative name "@mic1"\n[dshow] "Mic" (audio)\n[dshow] Alternative name "@mic2"\n[dshow] "Webcam" (video)\n[dshow] Alternative name "@video"', "audio");
+  assert.equal(devices.length, 2);
+  assert.notEqual(devices[0].device_reference, devices[1].device_reference);
+  assert.equal(devices[1].input, "@mic2");
+  const safe = publicDevice({device_reference:"usb-test", audio_sources:devices});
+  assert.equal(safe.audio_sources[0].input, undefined);
+  assert.match(safe.audio_sources[0].device_reference, /^mic-/);
+});

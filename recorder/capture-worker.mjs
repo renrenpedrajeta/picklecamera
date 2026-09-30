@@ -29,7 +29,7 @@ try {
   const disk = await statfs(directory);
   if (disk.bavail * disk.bsize < 512 * 1024 * 1024)
     throw new Error("storage_full");
-  const input = await cameraInput(device);
+  const input = await cameraInput(device, record.job.audio_source || "");
   const remaining = Math.floor(
     (Date.parse(record.job.claimed_at) +
       record.job.max_seconds * 1000 -
@@ -40,6 +40,7 @@ try {
   await save({ spawnAttempted: true });
   const result = await captureVideo({
     input,
+    audio: !!record.job.audio_source,
     video,
     maxSeconds: remaining,
     stopPath: join(directory, "stop"),

@@ -35,6 +35,8 @@ export function inventoryInput(value: unknown) {
       source_type: item.source_type as string,
       health: item.health as string,
       diagnostic: item.diagnostic as string,
+      audio_sources: audioSources(item.audio_sources),
+      audio_source: typeof item.audio_source === "string" && /^(stream|mic-[a-f0-9]{24})?$/.test(item.audio_source) ? item.audio_source : "",
     };
   });
 }
@@ -45,4 +47,13 @@ export function completionInput(body: Record<string, unknown>) {
     success: bool(body.success),
     devices: inventoryInput(body.devices),
   };
+}
+
+function audioSources(value: unknown) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > 64) throw new InputError("Invalid microphones.");
+  return value.map(item => {
+    if (!item || !/^mic-[a-f0-9]{24}$/.test(item.device_reference)) throw new InputError("Invalid microphone.");
+    return { device_reference: item.device_reference as string, name: text(item.name, "Microphone name") };
+  });
 }

@@ -32,11 +32,20 @@ export async function POST(request: Request) {
     });
     if (result.error) throw result.error;
     const job = result.data?.[0];
+    let audioSource = "";
+    if (job?.kind === "test") {
+      const cameras = await auth.db.from("cameras").select("audio_source").eq("recorder_id", auth.recorderId).eq("device_reference", job.device_reference);
+      if (cameras.error) throw cameras.error;
+      const sources = [...new Set((cameras.data || []).map(c => c.audio_source))];
+      if (sources.length > 1) throw new InputError("Camera registrations have different audio settings.");
+      audioSource = sources[0] || "";
+    }
     return json({
       command: job
         ? {
             id: job.id,
             kind: job.kind,
+            audio_source: audioSource,
             device_reference: job.device_reference,
             lease_token: job.lease_token,
           }

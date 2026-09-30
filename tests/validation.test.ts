@@ -44,6 +44,10 @@ test("camera registration rejects connection secrets and invalid assignments", (
     enabled: true,
   };
   assert.equal(cameraInput(valid).device_reference, "garden-01");
+  assert.equal(cameraInput(valid).audio_source, "");
+  assert.equal(cameraInput({...valid, audio_source: "stream"}).audio_source, "stream");
+  assert.throws(() => cameraInput({...valid, source_type: "usb", audio_source: "stream"}));
+  assert.throws(() => cameraInput({...valid, audio_source: "file:///private"}));
   assert.throws(() =>
     cameraInput({
       ...valid,
