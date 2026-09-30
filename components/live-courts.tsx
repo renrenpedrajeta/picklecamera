@@ -28,11 +28,7 @@ export default async function LiveCourts({
     );
   const db = await serverSupabase();
   const [courts, settings, sessions] = await Promise.all([
-    db
-      .from("courts")
-      .select("id,name,location")
-      .eq("active", true)
-      .order("created_at"),
+    db.rpc("player_court_status"),
     db
       .from("venue_settings")
       .select("max_duration_seconds,retention_seconds")
@@ -68,19 +64,34 @@ export default async function LiveCourts({
           </div>
           <div className="court-list">
             {courts.data.length ? (
-              courts.data.map((court) => (
-                <article className="court-card" key={court.id}>
-                  <div className="court-thumb">
-                    <Video size={27} />
-                  </div>
-                  <div className="court-info">
-                    <h4>{court.name}</h4>
-                    <p>{court.location || "Casa Batik"}</p>
-                    <div className="camera-label">Camera not connected</div>
-                  </div>
-                  <span className="status-tag">Offline</span>
-                </article>
-              ))
+              courts.data.map(
+                (court: {
+                  id: string;
+                  name: string;
+                  location: string;
+                  camera_status: string;
+                }) => (
+                  <article className="court-card" key={court.id}>
+                    <div className="court-thumb">
+                      <Video size={27} />
+                    </div>
+                    <div className="court-info">
+                      <h4>{court.name}</h4>
+                      <p>{court.location || "Casa Batik"}</p>
+                      <div className="camera-label">
+                        {court.camera_status === "online"
+                          ? "Camera connection checked"
+                          : "Camera not connected"}
+                      </div>
+                    </div>
+                    <span className="status-tag">
+                      {court.camera_status === "online"
+                        ? "Connected"
+                        : "Offline"}
+                    </span>
+                  </article>
+                ),
+              )
             ) : (
               <div className="empty-panel">
                 <h3>No courts configured yet.</h3>
@@ -89,8 +100,8 @@ export default async function LiveCourts({
             )}
           </div>
           <p className="form-note">
-            Recording becomes available after a venue recorder is paired and its
-            camera passes a connectivity check.
+            Camera connections can now be checked. Match recording is coming in
+            the next stage.
           </p>
         </div>
         <aside className="session-panel">
@@ -119,7 +130,7 @@ export default async function LiveCourts({
             Recording not available yet
           </button>
           <p className="form-note">
-            No video is being recorded. Camera service setup is the next stage.
+            No match is being recorded. Recording controls are not enabled yet.
           </p>
         </aside>
       </div>

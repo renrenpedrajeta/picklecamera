@@ -8,6 +8,10 @@ export type Recorder = {
   id: string;
   name: string;
   last_seen_at: string | null;
+  paired_at: string | null;
+  agent_version: string | null;
+  platform: string | null;
+  ffmpeg_available: boolean;
 };
 export type Camera = {
   id: string;
@@ -19,6 +23,25 @@ export type Camera = {
   is_primary: boolean;
   enabled: boolean;
   health: string;
+  last_health_check_at: string | null;
+};
+export type Device = {
+  id: string;
+  recorder_id: string;
+  device_reference: string;
+  name: string;
+  source_type: "network" | "usb";
+  health: string;
+  diagnostic: string;
+  last_test_at: string | null;
+};
+export type RecorderCommand = {
+  id: string;
+  recorder_id: string;
+  kind: string;
+  status: string;
+  created_at: string;
+  result_code: string | null;
 };
 export type Settings = {
   max_duration_seconds: number;
@@ -44,4 +67,6 @@ export type AdminData = {
   settings: Settings;
   sessions: Session[];
   events: Audit[];
+  devices: Device[];
+  commands: RecorderCommand[];
 };

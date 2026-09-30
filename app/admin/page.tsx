@@ -21,37 +21,68 @@ export default async function AdminPage() {
       </main>
     );
   const db = await serverSupabase();
-  const [courts, cameras, recorders, settings, sessions, events] =
-    await Promise.all([
-      db.from("courts").select("id,name,location,active").order("created_at"),
-      db
-        .from("cameras")
-        .select(
-          "id,name,recorder_id,court_id,source_type,device_reference,is_primary,enabled,health",
-        )
-        .order("name"),
-      db.from("recorders").select("id,name,last_seen_at").order("created_at"),
-      db
-        .from("venue_settings")
-        .select("max_duration_seconds,retention_seconds,venue_time_zone")
-        .eq("id", true)
-        .single(),
-      db
-        .from("recording_sessions")
-        .select(
-          "id,court_id,status,recipient_email,created_at,started_at,stopped_at,stop_reason,failure_stage",
-        )
-        .order("created_at", { ascending: false })
-        .limit(100),
-      db
-        .from("audit_events")
-        .select("id,action,created_at")
-        .order("created_at", { ascending: false })
-        .limit(20),
-    ]);
-  const failed = [courts, cameras, recorders, settings, sessions, events].some(
-    (result) => result.error,
-  );
+  const [
+    courts,
+    cameras,
+    recorders,
+    settings,
+    sessions,
+    events,
+    devices,
+    commands,
+  ] = await Promise.all([
+    db.from("courts").select("id,name,location,active").order("created_at"),
+    db
+      .from("cameras")
+      .select(
+        "id,name,recorder_id,court_id,source_type,device_reference,is_primary,enabled,health,last_health_check_at",
+      )
+      .order("name"),
+    db
+      .from("recorders")
+      .select(
+        "id,name,last_seen_at,paired_at,agent_version,platform,ffmpeg_available",
+      )
+      .order("created_at"),
+    db
+      .from("venue_settings")
+      .select("max_duration_seconds,retention_seconds,venue_time_zone")
+      .eq("id", true)
+      .single(),
+    db
+      .from("recording_sessions")
+      .select(
+        "id,court_id,status,recipient_email,created_at,started_at,stopped_at,stop_reason,failure_stage",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100),
+    db
+      .from("audit_events")
+      .select("id,action,created_at")
+      .order("created_at", { ascending: false })
+      .limit(20),
+    db
+      .from("recorder_devices")
+      .select(
+        "id,recorder_id,device_reference,name,source_type,health,diagnostic,last_test_at",
+      )
+      .order("name"),
+    db
+      .from("recorder_commands")
+      .select("id,recorder_id,kind,status,created_at,result_code")
+      .order("created_at", { ascending: false })
+      .limit(30),
+  ]);
+  const failed = [
+    courts,
+    cameras,
+    recorders,
+    settings,
+    sessions,
+    events,
+    devices,
+    commands,
+  ].some((result) => result.error);
   return (
     <>
       <header className="site-header shell">
@@ -86,6 +117,8 @@ export default async function AdminPage() {
               settings: settings.data,
               sessions: sessions.data,
               events: events.data,
+              devices: devices.data,
+              commands: commands.data,
             } as AdminData
           }
         />

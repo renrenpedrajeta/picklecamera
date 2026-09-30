@@ -26,11 +26,25 @@ export function sameOrigin(request: Request) {
 }
 export async function readBody(
   request: Request,
+  maxLength = 8192,
 ): Promise<Record<string, unknown>> {
   if (!request.headers.get("content-type")?.includes("application/json"))
     throw new InputError("Expected a JSON request.");
-  const raw = await request.text();
-  if (raw.length > 8192) throw new InputError("Request is too large.");
+  const reader = request.body?.getReader();
+  if (!reader) throw new InputError("Missing request body.");
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > maxLength) {
+      await reader.cancel();
+      throw new InputError("Request is too large.");
+    }
+    chunks.push(value);
+  }
+  const raw = Buffer.concat(chunks).toString("utf8");
   let body;
   try {
     body = JSON.parse(raw);

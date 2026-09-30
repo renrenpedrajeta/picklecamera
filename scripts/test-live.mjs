@@ -55,6 +55,17 @@ async function identity(role) {
   );
   return { id: data.user.id, email, cookie: login.cookies, password };
 }
+async function machine(path, body, token) {
+  const response = await fetch(`${base}/api/recorder/${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  return { status: response.status, body: await response.json() };
+}
 try {
   assert.equal(
     (await send("/api/admin/courts", { name: "No auth" })).status,
@@ -197,7 +208,92 @@ try {
   assert.ok(denied.error);
   const secretCameras = await playerClient.from("cameras").select("*");
   assert.equal(secretCameras.data.length, 0);
-  await playerClient.auth.signOut();
+  // Protocol fixtures simulate results; no physical camera is opened by this test.
+  const route = `/api/admin/recorders/${recorder.data.id}`;
+  assert.equal(
+    (await send(route, { action: "pair" }, player.cookie)).status,
+    403,
+  );
+  assert.equal(
+    (
+      await send(
+        route,
+        { action: "pair" },
+        admin.cookie,
+        "https://untrusted.example",
+      )
+    ).status,
+    403,
+  );
+  const pairing = await send(route, { action: "pair" }, admin.cookie);
+  assert.equal(pairing.status, 200);
+  const paired = await machine("pair", { code: pairing.body.code });
+  assert.equal(paired.status, 200);
+  assert.equal(
+    (await machine("pair", { code: pairing.body.code })).status,
+    401,
+  );
+  const token = paired.body.token;
+  const poll = {
+    platform: "win32",
+    version: "qa-fixture",
+    ffmpeg_available: true,
+  };
+  assert.equal((await machine("poll", poll, "invalid")).status, 401);
+  assert.equal(
+    (await send(route, { action: "discover" }, admin.cookie)).status,
+    200,
+  );
+  const claimed = await machine("poll", poll, token);
+  assert.equal(claimed.status, 200);
+  assert.equal(claimed.body.command.kind, "discover");
+  const job = claimed.body.command;
+  const device = {
+    device_reference: "qa-device",
+    name: "Protocol test fixture",
+    source_type: "usb",
+    health: "online",
+    diagnostic: "connected",
+  };
+  const completion = {
+    id: job.id,
+    lease_token: job.lease_token,
+    success: true,
+    devices: [device],
+  };
+  assert.equal((await machine("complete", completion, token)).status, 200);
+  assert.equal((await machine("complete", completion, token)).status, 409);
+  const inventory = await service
+    .from("recorder_devices")
+    .select("health")
+    .eq("recorder_id", recorder.data.id);
+  assert.equal(inventory.data[0].health, "unknown");
+  assert.equal(
+    (
+      await send(
+        route,
+        { action: "test", device_reference: "qa-device" },
+        admin.cookie,
+      )
+    ).status,
+    200,
+  );
+  const testJob = (await machine("poll", poll, token)).body.command;
+  assert.equal(
+    (
+      await machine(
+        "complete",
+        { ...completion, id: testJob.id, lease_token: testJob.lease_token },
+        token,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await send(route, { action: "revoke" }, admin.cookie)).status,
+    200,
+  );
+  assert.equal((await machine("poll", poll, token)).status, 401);
   result = await send("/api/auth/logout", {}, player.cookie);
   assert.equal(result.status, 200);
   const revoked = await send(
@@ -207,13 +303,20 @@ try {
   );
   assert.equal(revoked.status, 401);
   console.log(
-    "PASS: live login, HttpOnly session, admin CRUD, player court data, authorization, RLS isolation, and logout.",
+    "PASS: live login, admin CRUD, player isolation, recorder pairing, command delivery, replay rejection, revocation, and logout. Camera results were protocol fixtures, not hardware tests.",
   );
 } catch (error) {
   console.error("Live verification failed:", error.message);
   process.exitCode = 1;
 } finally {
   let cleanupFailed = false;
+  for (const id of ids.recorders) {
+    const result = await service
+      .from("audit_events")
+      .delete()
+      .contains("safe_detail", { recorder_id: id });
+    if (result.error) cleanupFailed = true;
+  }
   for (const [table, list] of [
     ["recording_sessions", ids.sessions],
     ["cameras", ids.cameras],

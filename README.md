@@ -1,6 +1,6 @@
 # Casa Batik match recording
 
-Second milestone: Supabase accounts, protected admin configuration, and database-backed player courts. The original interactive design preview remains at `/preview`.
+Third milestone: paired local recorder, camera discovery, connection checks, and admin camera assignment. The original interactive design preview remains at `/preview`.
 
 ## Run
 
@@ -26,7 +26,7 @@ npm test
 - Admin overview, court creation/editing/deactivation, recorder entries, dynamic network/USB camera assignments and primary-camera configuration.
 - Duration/retention/time-zone settings, recent activity, and latest 100 recording sessions with email/court/status/date filters.
 - Signed-in players see active courts from the database, their verified recipient email, saved limits, and their own session history.
-- Camera entries remain **not connected**. No capture, Drive upload or mail delivery is implemented in this milestone. Hardware health is not editable by an admin browser.
+- One-time recorder pairing, scoped revocable machine tokens, heartbeats, ONVIF network discovery, Windows USB discovery, and single-frame connection tests. Hardware health is not editable by an admin browser. Match capture, Drive upload and mail delivery are the following stages.
 - `/preview` retains the original simulation, isolated from live data and clearly labeled.
 
 The supplied original logo is preserved in `public/casa-batik-logo.jpg`. Court artwork is an original SVG illustration. Fonts use Google Fonts with local system fallbacks.
@@ -47,11 +47,29 @@ The migration runner records checksums and applies each new file in a transactio
 
 Account provisioning is a trusted local operation for explicitly confirmed owner/test emails. It auto-confirms seeded emails without sending mail, assigns the requested role server-side, and generates a random password in a git-ignored `.local/account-<id>.json` file. It does not reset existing users' passwords. Deliver these credentials privately; no public signup or email-based password reset UI is included yet. The owner must supply the lasting admin/test-player identities. Passwords and tokens must never enter Git.
 
-Browser clients cannot set roles or hardware health. Camera records hold only local device identifiers; stream URLs and passwords stay on the local service. Do not put credentials in recording snapshots or audit details. The Supabase server secret is only needed by provisioning and verification scripts in this stage, not the application routes.
+Browser clients cannot set roles or hardware health. Camera records hold only local device identifiers; stream URLs and passwords stay on the local service. Do not put credentials in recording snapshots or audit details. `SUPABASE_SECRET_KEY` is now required in the web server environment for the protected recorder APIs. Never expose it through a `NEXT_PUBLIC_` variable or install it on the recorder.
+
+## Local recorder setup (Windows)
+
+The venue PC must stay awake, have Node.js and this repository installed, and share a reachable network with the cameras. USB/integrated cameras connect to this PC, not the player's phone. Vercel hosts only the control app. The recorder makes outbound HTTPS requests; no inbound port forwarding is needed.
+
+1. Run `npm install` and `npm run recorder -- doctor` on the venue PC. FFmpeg is bundled by the dependency installer.
+2. In Admin → Cameras & recorders, add a recorder and select it. Click **Get pairing code**.
+3. From the project directory run `npm run recorder -- pair`. Enter the app origin (locally `http://127.0.0.1:3000`; later your Vercel HTTPS origin), then the one-time code. Codes expire in ten minutes. Redeeming a new code revokes the prior machine token.
+4. Run `npm run recorder -- start` and leave it running. The dashboard refreshes every ten seconds. A recorder becomes offline after 45 seconds without a heartbeat.
+5. Click **Discover cameras**. USB cameras and ONVIF cameras advertising on the local network appear under the selected recorder. Discovery does not open a video feed. ONVIF must be enabled on the camera; guest Wi-Fi isolation, VLAN separation, firewalls and proprietary cloud-only cameras may prevent discovery.
+6. For network credentials, stop the recorder with Ctrl+C, run `npm run recorder -- configure DEVICE_REFERENCE`, and answer the prompts locally. For a camera that cannot be discovered, omit the reference and enter its RTSP URL. Restart the service and discover again. `npm run recorder -- discover` can also enumerate devices locally before pairing.
+7. Click **Assign to court**, choose the court, enable its primary camera, and save. Then **Test connection**. This opens the feed briefly, decodes one video frame, and discards it; no clip, image or audio is saved or uploaded. A passing result is valid for five minutes and only while the recorder is connected. Retest after registration or a device change.
+
+The service currently supports Windows USB via DirectShow and ONVIF/RTSP network cameras. The number of cameras is configurable; each discovery is capped at 64 devices to bound payloads. Network credentials and the scoped machine token live in `.local/recorder/config.json`, protected with Windows account ACLs and excluded from Git. Do not copy this file into cloud hosting. Stop the service before local configuration changes. `CASA_RECORDER_HOME` can specify a different protected local directory.
+
+For a hidden background process, after pairing run `powershell -File recorder/start-hidden.ps1` from the project directory. It writes local service logs and runs until the process is stopped or the user signs out. This build does not install an automatic boot service. For visible operation use `npm run recorder -- start` and Ctrl+C. **Revoke pairing** immediately denies subsequent recorder API requests. A single-frame check already executing may finish locally.
+
+Commands use 90-second leases, at most three attempts, and a ten-minute queue lifetime. Completion is checkpointed locally and retried after network failures; stale lease completions are rejected. Discovery results alone never establish healthy cameras. Match recording will require its own durable lifecycle and fresh checks in the next build.
 
 ## Verification
 
-`npm test` runs validation tests and both SQL migrations in an isolated PostgreSQL engine (PGlite), verifying RLS, role escalation prevention, session isolation, limits and camera constraints. The test bootstrap models Supabase auth roles; production checks also run against the configured Supabase project.
+`npm test` runs validation, hardware-parser and SQL migration tests in an isolated PostgreSQL engine (PGlite), including pairing expiry/replay, command leases, recorder isolation, health expiry, roles, session isolation and camera constraints. The test bootstrap models Supabase auth roles; production checks also run against the configured Supabase project.
 
 With the local web app running, explicitly run this integration check:
 
@@ -59,14 +77,14 @@ With the local web app running, explicitly run this integration check:
 node --env-file=.env.local scripts/test-live.mjs
 ```
 
-It creates three temporary test identities and its own court/recorder/camera/session fixtures, verifies live login, cookies, roles, CRUD, isolation and logout, then removes its fixtures. It sends no emails, opens no cameras, and does not change venue settings. Do not use it as a load test. Check its cleanup result if it fails.
+It creates three temporary test identities and its own court/recorder/camera/session fixtures, verifies live login, cookies, roles, CRUD, isolation, recorder pairing/commands/revocation and logout, then removes its fixtures. Camera results are explicitly simulated protocol fixtures. It sends no emails, opens no cameras, and does not change venue settings. Do not use it as a load test. Check its cleanup result if it fails.
+
+`node --env-file=.env.local scripts/test-recorder-agent.mjs` additionally launches the actual local service with a disposable recorder and verifies pairing, heartbeats, discovery and result delivery. It enumerates devices on the local computer/network but never opens a feed. It cleans up its own cloud records and temporary configuration directory. Run it only on the intended test computer.
 
 ## Agreed next stages
 
-1. Provision the owner's confirmed admin and two player accounts; configure the actual courts and venue time zone.
-2. Pair a local recorder to discover supported network/USB cameras; keep camera credentials on the recorder.
-3. Implement durable capture jobs, explicit transitions, recovery, per-camera locking and server-side time limits.
-4. Authorize the owner Google account; use Picker for the existing Drive folder with drive.file; request gmail.send. Implement private sharing, resumable uploads, delivery retries and retention cleanup.
-5. Verify with actual hardware and two player identities, then deploy the web app to Vercel.
+1. Implement durable capture jobs, explicit transitions, recovery, per-camera locking and server-side time limits.
+2. Authorize the owner Google account; use Picker for the existing Drive folder with drive.file; request gmail.send. Implement private sharing, resumable uploads, delivery retries and retention cleanup.
+3. Verify with actual venue hardware and two player identities, then deploy the web app to Vercel.
 
-Default duration is 900 seconds and retention is 86400 seconds after successful upload. Venue time zone, recorder OS and camera model remain unconfirmed. The local recorder must run independently of the player's browser; Vercel hosts the control app, not the local camera connection.
+Default duration is 900 seconds and retention is 86400 seconds after successful upload. Venue time zone and final camera hardware remain unconfirmed. Windows is the first supported recorder OS. The local recorder runs independently of the player's browser.

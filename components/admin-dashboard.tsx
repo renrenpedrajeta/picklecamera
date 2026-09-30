@@ -1,5 +1,5 @@
 "use client";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera as CameraIcon,
@@ -10,7 +10,15 @@ import {
   Plus,
   CheckCircle2,
 } from "lucide-react";
-import type { AdminData, Camera, Court, Recorder } from "@/lib/admin-types";
+import type {
+  AdminData,
+  Camera,
+  Court,
+  Recorder,
+  Device,
+} from "@/lib/admin-types";
+import RecorderControls from "./recorder-controls";
+import { cameraOnline, recorderOnline } from "@/lib/recorder-status";
 
 type Tab = "overview" | "courts" | "cameras" | "settings" | "logs";
 function SaveForm({
@@ -123,7 +131,15 @@ function CourtForm({ court }: { court?: Court }) {
   );
 }
 
-function CameraForm({ camera, data }: { camera?: Camera; data: AdminData }) {
+function CameraForm({
+  camera,
+  device,
+  data,
+}: {
+  camera?: Camera;
+  device?: Device;
+  data: AdminData;
+}) {
   return (
     <SaveForm
       resource="cameras"
@@ -142,7 +158,7 @@ function CameraForm({ camera, data }: { camera?: Camera; data: AdminData }) {
         Camera name
         <input
           name="name"
-          defaultValue={camera?.name}
+          defaultValue={camera?.name || device?.name}
           required
           maxLength={100}
           placeholder="Garden court camera"
@@ -153,7 +169,9 @@ function CameraForm({ camera, data }: { camera?: Camera; data: AdminData }) {
           Connection type
           <select
             name="source_type"
-            defaultValue={camera?.source_type || "network"}
+            defaultValue={
+              camera?.source_type || device?.source_type || "network"
+            }
           >
             <option value="network">Wi-Fi / Ethernet</option>
             <option value="usb">USB camera</option>
@@ -163,7 +181,7 @@ function CameraForm({ camera, data }: { camera?: Camera; data: AdminData }) {
           Venue recorder
           <select
             name="recorder_id"
-            defaultValue={camera?.recorder_id || ""}
+            defaultValue={camera?.recorder_id || device?.recorder_id || ""}
             required
           >
             <option value="" disabled>
@@ -181,7 +199,7 @@ function CameraForm({ camera, data }: { camera?: Camera; data: AdminData }) {
         Local device reference
         <input
           name="device_reference"
-          defaultValue={camera?.device_reference}
+          defaultValue={camera?.device_reference || device?.device_reference}
           required
           maxLength={120}
           pattern="[a-zA-Z0-9._:\-]+"
@@ -245,8 +263,7 @@ function RecorderForm({ recorder }: { recorder?: Recorder }) {
         />
       </label>
       <p className="form-note">
-        This reserves a recorder entry. Pairing and automatic camera discovery
-        will be added with the local camera service.
+        Save the recorder, select it from the list, then pair its local service.
       </p>
     </SaveForm>
   );
@@ -256,10 +273,18 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [courtId, setCourtId] = useState("");
   const [cameraId, setCameraId] = useState("");
+  const [device, setDevice] = useState<Device>();
   const [recorderId, setRecorderId] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [date, setDate] = useState("");
+  const router = useRouter();
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [router]);
   const zone = data.settings.venue_time_zone || "UTC";
   function timestamp(value: string) {
     return new Intl.DateTimeFormat("en", {
@@ -363,7 +388,11 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                 </li>
                 <li>
                   <span>Local camera service</span>
-                  <b className="status-tag">Not connected</b>
+                  <b className="status-tag">
+                    {data.recorders.some((r) => recorderOnline(r))
+                      ? "Connected"
+                      : "Not connected"}
+                  </b>
                 </li>
                 <li>
                   <span>Google Drive & Gmail</span>
@@ -450,11 +479,11 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
           <div className="admin-callout">
             <Monitor size={22} />
             <div>
-              <strong>Prepare your camera configuration.</strong>
+              <strong>Bring your cameras onto the court.</strong>
               <p>
                 Wi-Fi, Ethernet, and USB devices connect through the venue
-                recorder. Discovery and connection tests will be available in
-                the local-service build.
+                recorder. Pair the computer below, discover cameras, then test
+                and assign them to a court. Recording comes in the next stage.
               </p>
             </div>
           </div>
@@ -462,7 +491,13 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
             <section className="admin-card">
               <div className="card-title">
                 <h2>Cameras</h2>
-                <button className="sign-in" onClick={() => setCameraId("")}>
+                <button
+                  className="sign-in"
+                  onClick={() => {
+                    setCameraId("");
+                    setDevice(undefined);
+                  }}
+                >
                   <Plus size={15} /> Add camera
                 </button>
               </div>
@@ -471,7 +506,10 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                   <button
                     key={camera.id}
                     aria-pressed={cameraId === camera.id}
-                    onClick={() => setCameraId(camera.id)}
+                    onClick={() => {
+                      setCameraId(camera.id);
+                      setDevice(undefined);
+                    }}
                   >
                     <span>
                       <strong>{camera.name}</strong>
@@ -483,7 +521,11 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                       </small>
                     </span>
                     <span className="status-tag">
-                      {camera.enabled ? "Not connected" : "Disabled"}
+                      {!camera.enabled
+                        ? "Disabled"
+                        : cameraOnline(camera, data.recorders)
+                          ? "Connection passed"
+                          : "Test required"}
                     </span>
                   </button>
                 ))}
@@ -493,10 +535,13 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
               )}
             </section>
             <section className="admin-card">
-              <h2>{cameraId ? "Edit camera" : "Register a camera"}</h2>
+              <h2 id="camera-form">
+                {cameraId ? "Edit camera" : "Register a camera"}
+              </h2>
               {data.recorders.length ? (
                 <CameraForm
-                  key={cameraId}
+                  key={cameraId || device?.id || "new"}
+                  device={device}
                   camera={data.cameras.find((c) => c.id === cameraId)}
                   data={data}
                 />
@@ -524,9 +569,15 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                   >
                     <span>
                       <strong>{recorder.name}</strong>
-                      <small>Pairing is not available yet</small>
+                      <small>
+                        {recorder.paired_at
+                          ? "Paired local service"
+                          : "Ready to pair"}
+                      </small>
                     </span>
-                    <span className="status-tag">Not connected</span>
+                    <span className="status-tag">
+                      {recorderOnline(recorder) ? "Connected" : "Offline"}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -543,6 +594,22 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                 key={recorderId}
                 recorder={data.recorders.find((r) => r.id === recorderId)}
               />
+              {data.recorders
+                .filter((r) => r.id === recorderId)
+                .map((recorder) => (
+                  <RecorderControls
+                    key={recorder.id}
+                    recorder={recorder}
+                    data={data}
+                    onRegister={(selected) => {
+                      setCameraId("");
+                      setDevice(selected);
+                      document
+                        .getElementById("camera-form")
+                        ?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                  />
+                ))}
             </section>
           </div>
         </>

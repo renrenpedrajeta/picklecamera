@@ -474,3 +474,53 @@ summary {
     padding: 25px 18px;
   }
 }
+.recorder-controls {
+  margin-top: 30px;
+  border-top: 1px solid #d6dcd4;
+  padding-top: 22px;
+}
+.recorder-controls h3 {
+  margin: 20px 0 10px;
+}
+.recorder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+.recorder-actions button {
+  font-size: 12px;
+}
+.pairing-box {
+  background: #f6edda;
+  padding: 18px;
+  margin: 20px 0;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.pairing-box label {
+  display: grid;
+  gap: 6px;
+}
+.pairing-box input {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #b7c5bc;
+  border-radius: 6px;
+}
+.discovered-devices article {
+  padding: 16px 0;
+  border-bottom: 1px solid #d6dcd4;
+}
+.discovered-devices small,
+.discovered-devices code {
+  display: block;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.recorder-history {
+  margin-top: 20px;
+  font-size: 12px;
+}
