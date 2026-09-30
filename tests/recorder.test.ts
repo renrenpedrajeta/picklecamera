@@ -139,7 +139,7 @@ test("recorder pairing, leases, result isolation, RLS and stale health", async (
     );
     assert.equal(await finish(job), true);
     await db.exec(
-      `update public.recorders set last_seen_at=now() where id='${r}';set request.jwt.claim.sub='${player}';`,
+      `update public.recorders set last_seen_at=now(),agent_version='0.3.0' where id='${r}';set request.jwt.claim.sub='${player}';`,
     );
     assert.equal(
       await value("select camera_status from public.player_court_status()"),

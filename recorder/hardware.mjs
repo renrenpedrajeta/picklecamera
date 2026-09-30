@@ -169,47 +169,45 @@ export function mergeDevices(existing, found) {
     throw new Error("Discovery exceeds the 64-device safety limit.");
   return [...unique.values()];
 }
+export async function cameraInput(device) {
+  let input;
+  if (device.source_type === "usb") {
+    if (process.platform !== "win32") throw new Error("unsupported_platform");
+    input = ["-f", "dshow", "-i", `video=${device.input}`];
+  } else {
+    let stream = device.stream;
+    if (!stream && device.endpoint && device.username !== undefined) {
+      const endpoint = cameraUrl(device.endpoint, ["http:", "https:"]);
+      const cam = new Cam({
+        hostname: endpoint.hostname,
+        port: Number(
+          endpoint.port || (endpoint.protocol === "https:" ? 443 : 80),
+        ),
+        useSecure: endpoint.protocol === "https:",
+        path: endpoint.pathname,
+        username: device.username,
+        password: device.password,
+        timeout: 5000,
+      });
+      await cam.connect();
+      const media = await cam.getStreamUri({ protocol: "RTSP" });
+      stream = media.uri;
+    }
+    if (!stream) throw new Error("needs_configuration");
+    const uri = cameraUrl(stream, ["rtsp:", "rtsps:"]);
+    if (device.username) {
+      uri.username = device.username;
+      uri.password = device.password || "";
+    }
+    input = ["-rtsp_transport", "tcp", "-i", uri.href];
+  }
+  return input;
+}
 export async function testDevice(device, ffmpegAvailable) {
   if (!ffmpegAvailable)
     return publicDevice(device, "offline", "ffmpeg_missing");
   try {
-    let input;
-    if (device.source_type === "usb") {
-      if (process.platform !== "win32")
-        return publicDevice(device, "offline", "unsupported_platform");
-      input = ["-f", "dshow", "-i", `video=${device.input}`];
-    } else {
-      let stream = device.stream;
-      if (!stream && device.endpoint && device.username !== undefined) {
-        const endpoint = cameraUrl(device.endpoint, ["http:", "https:"]);
-        const cam = new Cam({
-          hostname: endpoint.hostname,
-          port: Number(
-            endpoint.port || (endpoint.protocol === "https:" ? 443 : 80),
-          ),
-          useSecure: endpoint.protocol === "https:",
-          path: endpoint.pathname,
-          username: device.username,
-          password: device.password,
-          timeout: 5000,
-        });
-        await cam.connect();
-        const media = await cam.getStreamUri({ protocol: "RTSP" });
-        stream = media.uri;
-      }
-      if (!stream)
-        return publicDevice(
-          device,
-          "needs_configuration",
-          "needs_configuration",
-        );
-      const uri = cameraUrl(stream, ["rtsp:", "rtsps:"]);
-      if (device.username) {
-        uri.username = device.username;
-        uri.password = device.password || "";
-      }
-      input = ["-rtsp_transport", "tcp", "-i", uri.href];
-    }
+    const input = await cameraInput(device);
     const result = await run([
       "-nostdin",
       "-hide_banner",
@@ -228,7 +226,11 @@ export async function testDevice(device, ffmpegAvailable) {
       result.ok ? "online" : "offline",
       result.ok ? "connected" : "unreachable",
     );
-  } catch {
+  } catch (error) {
+    if (error.message === "needs_configuration")
+      return publicDevice(device, "needs_configuration", "needs_configuration");
+    if (error.message === "unsupported_platform")
+      return publicDevice(device, "offline", "unsupported_platform");
     return publicDevice(device, "offline", "unreachable");
   }
 }

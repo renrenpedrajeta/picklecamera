@@ -400,8 +400,8 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                 </li>
               </ul>
               <p className="form-note">
-                Recording remains unavailable until hardware and delivery
-                integrations are verified.
+                Paired recorders can now save match videos locally. Google Drive
+                upload and email delivery are the next stage.
               </p>
             </section>
             <section className="admin-card">
@@ -483,7 +483,8 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
               <p>
                 Wi-Fi, Ethernet, and USB devices connect through the venue
                 recorder. Pair the computer below, discover cameras, then test
-                and assign them to a court. Recording comes in the next stage.
+                and assign them to a court. Players can record from an available
+                primary camera.
               </p>
             </div>
           </div>
@@ -711,6 +712,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                   "starting",
                   "recording",
                   "finalizing",
+                  "local_ready",
                   "uploading",
                   "sharing",
                   "ready",
@@ -753,7 +755,11 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                       </td>
                       <td>{session.recipient_email}</td>
                       <td>
-                        <span className="status-tag">{session.status}</span>
+                        <span className="status-tag">
+                          {session.status === "local_ready"
+                            ? "Saved locally"
+                            : session.status}
+                        </span>
                       </td>
                       <td>
                         <details>
@@ -773,6 +779,13 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                           </p>
                           <p>Reason: {session.stop_reason || "—"}</p>
                           <p>Failure stage: {session.failure_stage || "—"}</p>
+                          {session.status === "local_ready" && (
+                            <p>
+                              Video saved on the venue recorder in its protected
+                              captures folder, under this session ID. Drive
+                              upload and email are not enabled yet.
+                            </p>
+                          )}
                         </details>
                       </td>
                     </tr>

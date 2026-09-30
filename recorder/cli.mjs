@@ -19,6 +19,7 @@ import {
   cameraUrl,
 } from "./hardware.mjs";
 import { randomUUID } from "node:crypto";
+import { syncCaptures } from "./capture-manager.mjs";
 
 const home = resolve(process.env.CASA_RECORDER_HOME || ".local/recorder");
 const configPath = join(home, "config.json");
@@ -250,6 +251,7 @@ async function main() {
     try {
       while (!stopping) {
         try {
+          const capturing = await syncCaptures(home, config, api);
           const pending = await load(pendingPath, null);
           if (pending) {
             try {
@@ -261,8 +263,9 @@ async function main() {
           }
           const { command: job } = await api(config, "poll", {
             platform: process.platform,
-            version: "0.2.0",
+            version: "0.3.0",
             ffmpeg_available: available,
+            capturing,
           });
           if (job) {
             let devices = [];
@@ -304,7 +307,7 @@ async function main() {
             );
           console.log("Server unavailable. Retrying shortly.");
         }
-        await delay(10000);
+        await delay(2000);
       }
     } finally {
       process.off("SIGINT", stop);

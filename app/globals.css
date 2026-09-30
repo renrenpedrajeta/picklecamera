@@ -1104,3 +1104,17 @@ dialog::backdrop {
     transition: none !important;
   }
 }
+.court-card[aria-pressed="true"] {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+button.court-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+button.court-card:disabled {
+  cursor: default;
+}

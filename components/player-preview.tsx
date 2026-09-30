@@ -467,7 +467,9 @@ export default function PlayerPreview({
               {
                 icon: Download,
                 title: "Keep the good stuff",
-                copy: "Get a private Google Drive link. Watch, download, and relive your game.",
+                copy: livePanel
+                  ? "Your video is saved on the venue computer. Private Drive links and email delivery are coming next."
+                  : "Get a private Google Drive link. Watch, download, and relive your game.",
               },
             ].map((step, i) => (
               <div className="how-step" key={step.title}>

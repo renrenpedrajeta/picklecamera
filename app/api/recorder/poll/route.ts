@@ -19,6 +19,14 @@ export async function POST(request: Request) {
       })
       .eq("id", auth.recorderId);
     if (error) throw error;
+    const active = await auth.db
+      .from("capture_jobs")
+      .select("session_id")
+      .eq("recorder_id", auth.recorderId)
+      .in("status", ["pending", "active"])
+      .limit(1);
+    if (active.error) throw active.error;
+    if (active.data?.length) return json({ command: null });
     const result = await auth.db.rpc("claim_recorder_command", {
       p_recorder_id: auth.recorderId,
     });
