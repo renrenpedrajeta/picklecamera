@@ -6,20 +6,28 @@
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
+    "account:create": "node --env-file=.env.local scripts/provision-account.mjs",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.0",
     "@supabase/supabase-js": "^2.49.0",
     "lucide-react": "^0.468.0",
-    "next": "16.3.3",
+    "next": "16.3.6",
+    "pg": "^8.23.1",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.0"
   }
 }

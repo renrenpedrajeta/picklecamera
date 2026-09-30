@@ -114,7 +114,13 @@ function CourtArt({ miniature = false }: { miniature?: boolean }) {
   );
 }
 
-export default function PlayerPreview() {
+export default function PlayerPreview({
+  livePanel,
+  accountControls,
+}: {
+  livePanel?: React.ReactNode;
+  accountControls?: React.ReactNode;
+}) {
   const [selected, setSelected] = useState(1);
   const [stage, setStage] = useState<Stage>("idle");
   const [seconds, setSeconds] = useState(0);
@@ -161,13 +167,15 @@ export default function PlayerPreview() {
 
   return (
     <>
-      <div className="preview-banner">
-        <span className="preview-pill">DESIGN PREVIEW</span>
-        <span>Take a look around. Courts and recording are simulated.</span>
-        <span className="preview-right">
-          No camera connected <span className="small-dot" />
-        </span>
-      </div>
+      {!livePanel && (
+        <div className="preview-banner">
+          <span className="preview-pill">DESIGN PREVIEW</span>
+          <span>Take a look around. Courts and recording are simulated.</span>
+          <span className="preview-right">
+            No camera connected <span className="small-dot" />
+          </span>
+        </div>
+      )}
       <header className="site-header shell">
         <a href="#" className="brand" aria-label="Casa Batik home">
           <img
@@ -184,9 +192,11 @@ export default function PlayerPreview() {
           </a>
           <a href="#how-it-works">How it works</a>
         </nav>
-        <button className="sign-in" onClick={() => setModal("signin")}>
-          Sign in <ArrowRight size={16} />
-        </button>
+        {accountControls || (
+          <button className="sign-in" onClick={() => setModal("signin")}>
+            Sign in <ArrowRight size={16} />
+          </button>
+        )}
       </header>
 
       <main>
@@ -253,173 +263,178 @@ export default function PlayerPreview() {
                 <span className="muted-step">02</span> Hit record
               </div>
             </div>
-            <div className="record-grid">
-              <div className="court-selection">
-                <div className="subheading">
-                  <h3>Find your court</h3>
-                  <span>
-                    3 sample courts <ChevronDown size={13} />
-                  </span>
-                </div>
-                <div className="court-list">
-                  {courts.map((court) => (
-                    <button
-                      key={court.id}
-                      className={`court-card ${selected === court.id ? "selected" : ""} ${!court.available ? "unavailable" : ""}`}
-                      disabled={!court.available || active}
-                      onClick={() => {
-                        setSelected(court.id);
-                        reset();
-                      }}
-                      aria-pressed={selected === court.id}
-                      aria-label={`${court.name}, ${court.location}, ${court.status}`}
-                    >
-                      <div className={`court-thumb court-thumb-${court.id}`}>
-                        <CourtArt miniature />
-                      </div>
-                      <div className="court-info">
-                        <div className="court-name-row">
-                          <h4>{court.name}</h4>
-                          <span
-                            className={`availability ${court.available ? "available" : "busy"}`}
-                          >
-                            <span />
-                            {court.status}
-                          </span>
+            {livePanel || (
+              <div className="record-grid">
+                <div className="court-selection">
+                  <div className="subheading">
+                    <h3>Find your court</h3>
+                    <span>
+                      3 sample courts <ChevronDown size={13} />
+                    </span>
+                  </div>
+                  <div className="court-list">
+                    {courts.map((court) => (
+                      <button
+                        key={court.id}
+                        className={`court-card ${selected === court.id ? "selected" : ""} ${!court.available ? "unavailable" : ""}`}
+                        disabled={!court.available || active}
+                        onClick={() => {
+                          setSelected(court.id);
+                          reset();
+                        }}
+                        aria-pressed={selected === court.id}
+                        aria-label={`${court.name}, ${court.location}, ${court.status}`}
+                      >
+                        <div className={`court-thumb court-thumb-${court.id}`}>
+                          <CourtArt miniature />
                         </div>
-                        <p>{court.location}</p>
-                        <div className="camera-label">
-                          <Video size={13} />
-                          {court.available
-                            ? "Primary camera · Sample feed"
-                            : "Another match is in progress"}
+                        <div className="court-info">
+                          <div className="court-name-row">
+                            <h4>{court.name}</h4>
+                            <span
+                              className={`availability ${court.available ? "available" : "busy"}`}
+                            >
+                              <span />
+                              {court.status}
+                            </span>
+                          </div>
+                          <p>{court.location}</p>
+                          <div className="camera-label">
+                            <Video size={13} />
+                            {court.available
+                              ? "Primary camera · Sample feed"
+                              : "Another match is in progress"}
+                          </div>
                         </div>
-                      </div>
-                      <span className="selection-circle">
-                        {selected === court.id && <Check size={13} />}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div className="court-footnote">
-                  <Wifi size={15} />
-                  <p>
-                    Pick the court you’re playing on. We’ll take care of the
-                    angle.
-                  </p>
-                </div>
-              </div>
-
-              <aside className="session-panel" aria-label="Your recording">
-                <div className="panel-heading">
-                  <span className="eyebrow">YOUR RECORDING</span>
-                  <span className="panel-icon">
-                    <Video size={18} />
-                  </span>
-                </div>
-                <div className="session-title">
-                  <h3>{courts.find((c) => c.id === selected)?.name}</h3>
-                  <span className="preview-chip">Preview</span>
-                </div>
-                <p className="panel-description">
-                  A good game. Saved for later.
-                </p>
-                <div className="session-facts">
-                  <div>
-                    <Clock3 size={17} />
-                    <span>Recording limit</span>
-                    <strong>15 minutes</strong>
-                  </div>
-                  <div>
-                    <ShieldCheck size={17} />
-                    <span>Private access</span>
-                    <strong>Just for you</strong>
-                  </div>
-                  <div>
-                    <Film size={17} />
-                    <span>Video available for</span>
-                    <strong>24 hours*</strong>
-                  </div>
-                </div>
-                <div className="recipient">
-                  <Mail size={16} />
-                  <div>
-                    <span>Send your replay to</span>
-                    <strong>you@example.com</strong>
-                  </div>
-                  <span className="sample-label">SAMPLE</span>
-                </div>
-                <div className="record-action" aria-live="polite">
-                  {stage === "idle" ? (
-                    <>
-                      <button className="primary record-button" onClick={start}>
-                        <span className="record-dot" /> Try recording preview{" "}
-                        <ArrowRight size={17} />
-                      </button>
-                      <p className="action-hint">
-                        <LockKeyhole size={12} /> Sign in will be required for a
-                        real recording.
-                      </p>
-                    </>
-                  ) : stage === "recording" ? (
-                    <>
-                      <div className="timer">
-                        <span>
-                          <i /> Preview recording
+                        <span className="selection-circle">
+                          {selected === court.id && <Check size={13} />}
                         </span>
-                        <strong>{time(seconds)}</strong>
-                      </div>
-                      <button
-                        className="stop-button"
-                        onClick={() => setStage("processing")}
-                      >
-                        <Square size={14} fill="currentColor" /> Stop preview
                       </button>
-                      <p className="action-hint">
-                        {time(900 - seconds)} remaining · No footage is being
-                        captured
-                      </p>
-                    </>
-                  ) : stage === "processing" ? (
-                    <div className="processing">
-                      <span className="spinner" />
-                      <strong>Preparing your replay…</strong>
-                      <p>Simulating video processing and upload.</p>
-                    </div>
-                  ) : (
-                    <div className="ready">
-                      <div className="ready-title">
-                        <Check size={18} /> Your preview is ready
-                      </div>
-                      <p>
-                        {time(seconds)} · Court 0{selected} · Sample result
-                      </p>
-                      <button
-                        className="primary record-button"
-                        onClick={() => setSent(true)}
-                      >
-                        <Mail size={16} />
-                        {sent
-                          ? "Email preview complete"
-                          : "Preview email delivery"}
-                      </button>
-                      <p className="action-hint">
-                        {sent
-                          ? "Simulation only. No email was sent."
-                          : "A private Drive link will appear here when connected."}
-                      </p>
-                      <button className="text-button" onClick={reset}>
-                        <RotateCcw size={13} /> Start another preview
-                      </button>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                  <div className="court-footnote">
+                    <Wifi size={15} />
+                    <p>
+                      Pick the court you’re playing on. We’ll take care of the
+                      angle.
+                    </p>
+                  </div>
                 </div>
-                <p className="retention-note">
-                  *From successful upload. Your court camera records the playing
-                  area. Downloaded copies remain yours.
-                </p>
-              </aside>
-            </div>
+
+                <aside className="session-panel" aria-label="Your recording">
+                  <div className="panel-heading">
+                    <span className="eyebrow">YOUR RECORDING</span>
+                    <span className="panel-icon">
+                      <Video size={18} />
+                    </span>
+                  </div>
+                  <div className="session-title">
+                    <h3>{courts.find((c) => c.id === selected)?.name}</h3>
+                    <span className="preview-chip">Preview</span>
+                  </div>
+                  <p className="panel-description">
+                    A good game. Saved for later.
+                  </p>
+                  <div className="session-facts">
+                    <div>
+                      <Clock3 size={17} />
+                      <span>Recording limit</span>
+                      <strong>15 minutes</strong>
+                    </div>
+                    <div>
+                      <ShieldCheck size={17} />
+                      <span>Private access</span>
+                      <strong>Just for you</strong>
+                    </div>
+                    <div>
+                      <Film size={17} />
+                      <span>Video available for</span>
+                      <strong>24 hours*</strong>
+                    </div>
+                  </div>
+                  <div className="recipient">
+                    <Mail size={16} />
+                    <div>
+                      <span>Send your replay to</span>
+                      <strong>you@example.com</strong>
+                    </div>
+                    <span className="sample-label">SAMPLE</span>
+                  </div>
+                  <div className="record-action" aria-live="polite">
+                    {stage === "idle" ? (
+                      <>
+                        <button
+                          className="primary record-button"
+                          onClick={start}
+                        >
+                          <span className="record-dot" /> Try recording preview{" "}
+                          <ArrowRight size={17} />
+                        </button>
+                        <p className="action-hint">
+                          <LockKeyhole size={12} /> Sign in will be required for
+                          a real recording.
+                        </p>
+                      </>
+                    ) : stage === "recording" ? (
+                      <>
+                        <div className="timer">
+                          <span>
+                            <i /> Preview recording
+                          </span>
+                          <strong>{time(seconds)}</strong>
+                        </div>
+                        <button
+                          className="stop-button"
+                          onClick={() => setStage("processing")}
+                        >
+                          <Square size={14} fill="currentColor" /> Stop preview
+                        </button>
+                        <p className="action-hint">
+                          {time(900 - seconds)} remaining · No footage is being
+                          captured
+                        </p>
+                      </>
+                    ) : stage === "processing" ? (
+                      <div className="processing">
+                        <span className="spinner" />
+                        <strong>Preparing your replay…</strong>
+                        <p>Simulating video processing and upload.</p>
+                      </div>
+                    ) : (
+                      <div className="ready">
+                        <div className="ready-title">
+                          <Check size={18} /> Your preview is ready
+                        </div>
+                        <p>
+                          {time(seconds)} · Court 0{selected} · Sample result
+                        </p>
+                        <button
+                          className="primary record-button"
+                          onClick={() => setSent(true)}
+                        >
+                          <Mail size={16} />
+                          {sent
+                            ? "Email preview complete"
+                            : "Preview email delivery"}
+                        </button>
+                        <p className="action-hint">
+                          {sent
+                            ? "Simulation only. No email was sent."
+                            : "A private Drive link will appear here when connected."}
+                        </p>
+                        <button className="text-button" onClick={reset}>
+                          <RotateCcw size={13} /> Start another preview
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="retention-note">
+                    *From successful upload. Your court camera records the
+                    playing area. Downloaded copies remain yours.
+                  </p>
+                </aside>
+              </div>
+            )}
           </div>
         </section>
 
@@ -500,7 +515,9 @@ export default function PlayerPreview() {
           >
             <X size={21} />
           </button>
-          <div className="eyebrow">CASA BATIK · INTERFACE PREVIEW</div>
+          <div className="eyebrow">
+            CASA BATIK · {livePanel ? "COURTSIDE HELP" : "INTERFACE PREVIEW"}
+          </div>
           <h2>
             {modal === "signin"
               ? "Your next good game."
@@ -509,9 +526,12 @@ export default function PlayerPreview() {
           {modal === "signin" ? (
             <>
               <p>
-                Player sign-in will connect to Supabase in the next build stage.
-                No credentials are collected in this preview.
+                This is a separate design preview. For your real account, use
+                the player sign-in page.
               </p>
+              <a className="primary" href="/login">
+                Go to player sign-in
+              </a>
               <button
                 className="primary"
                 onClick={() => {
@@ -527,12 +547,13 @@ export default function PlayerPreview() {
           ) : (
             <>
               <p>
-                Choose an available sample court and try the recording preview.
-                Stop it to see processing and the sample delivery screen.
+                {livePanel
+                  ? "Sign in with your venue-issued account to see the configured courts. Ask venue staff if you need access or help with your password."
+                  : "Choose an available sample court and try the recording preview. Stop it to see processing and the sample delivery screen."}
               </p>
               <p>
-                Real camera capture, account sign-in, Drive links, and email
-                delivery are not connected yet.
+                Camera capture, Drive links, and match email delivery are not
+                connected yet. No video is being captured.
               </p>
               <button
                 className="primary"
