@@ -20,6 +20,7 @@ import {
 } from "./hardware.mjs";
 import { randomUUID } from "node:crypto";
 import { syncCaptures } from "./capture-manager.mjs";
+import { uploadLoop } from "./drive-upload.mjs";
 
 const home = resolve(process.env.CASA_RECORDER_HOME || ".local/recorder");
 const configPath = join(home, "config.json");
@@ -106,7 +107,7 @@ async function api(config, path, body, authenticated = true) {
   const response = await fetch(`${config.url}/api/recorder/${path}`, {
     method: "POST",
     redirect: "error",
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(path === "uploads" ? 60000 : 12000),
     headers: {
       "Content-Type": "application/json",
       ...(authenticated ? { Authorization: `Bearer ${config.token}` } : {}),
@@ -248,6 +249,7 @@ async function main() {
     process.on("SIGINT", stop);
     process.on("SIGTERM", stop);
     const pendingPath = join(home, "completion.json");
+    const uploads = uploadLoop(home, config, api, () => stopping);
     try {
       while (!stopping) {
         try {
@@ -310,6 +312,8 @@ async function main() {
         await delay(2000);
       }
     } finally {
+      stopping = true;
+      await uploads;
       process.off("SIGINT", stop);
       process.off("SIGTERM", stop);
     }

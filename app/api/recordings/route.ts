@@ -12,7 +12,7 @@ export async function GET() {
     db
       .from("recording_sessions")
       .select(
-        "id,court_id,status,started_at,created_at,stopped_at,stop_requested_at,duration_seconds,stop_reason,configuration_snapshot",
+        "id,court_id,status,started_at,created_at,stopped_at,stop_requested_at,duration_seconds,stop_reason,failure_stage,configuration_snapshot,recording_files(status,expires_at)",
       )
       .eq("player_id", account.id)
       .order("created_at", { ascending: false })
@@ -53,9 +53,11 @@ export async function GET() {
   );
   return json({
     courts: courts.data,
-    sessions: sessions.data.map(({ configuration_snapshot, ...s }) => ({
+    sessions: sessions.data.map(({ configuration_snapshot, recording_files, ...s }) => ({
       ...s,
       audio_enabled: configuration_snapshot?.audio_enabled === true,
+      expires_at: recording_files?.[0]?.expires_at || null,
+      playback_available: s.status === "ready" && recording_files?.[0]?.status === "ready" && Date.parse(recording_files[0].expires_at || "") > Date.now(),
       recorder_online: online.get(s.id) ?? false,
     })),
     maxSeconds: settings.data.max_duration_seconds,

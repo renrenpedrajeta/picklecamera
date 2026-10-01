@@ -20,6 +20,9 @@ type Session = {
   stop_reason: string | null;
   recorder_online: boolean;
   audio_enabled: boolean;
+  playback_available: boolean;
+  expires_at: string | null;
+  failure_stage: string | null;
 };
 type Snapshot = { courts: Court[]; sessions: Session[]; maxSeconds: number };
 const activeStates = ["requested", "starting", "recording", "finalizing"];
@@ -240,8 +243,7 @@ export default function RecordingPanel({ email }: { email: string }) {
             </p>
           )}
           <p className="form-note">
-            {(active ? active.audio_enabled : selected?.audio_enabled) ? "Microphone on — video and audio will be recorded." : "Video only — microphone off."} Clips are saved securely on the venue computer. Google
-            Drive playback and email delivery will be added next.
+            {(active ? active.audio_enabled : selected?.audio_enabled) ? "Microphone on — video and audio will be recorded." : "Video only — microphone off."} Clips are saved on the venue computer, then uploaded when Google Drive is connected. Private viewing links appear below. Email delivery is coming next.
           </p>
         </aside>
       </div>
@@ -252,12 +254,14 @@ export default function RecordingPanel({ email }: { email: string }) {
             {data.sessions.map((session) => (
               <li key={session.id}>
                 <div>
-                  <strong>{labels[session.status] || session.status}</strong>
+                  <strong>{session.status === "failed" && ["upload","sharing"].includes(session.failure_stage || "") ? "Drive needs attention" : labels[session.status] || session.status}</strong>
+                  {session.playback_available && <p><a className="sign-in" href={`/api/recordings/${session.id}/playback`} target="_blank" rel="noopener noreferrer">View on Google Drive</a></p>}
+                  {session.status === "ready" && <p className="form-note">Sign into Google using your recipient email. Google may still be processing the video. Planned viewing deadline: {session.expires_at ? new Date(session.expires_at).toLocaleString() : "Not set"}. Automatic Drive deletion is not enabled yet.</p>}
                   <p className="form-note">
                     {session.status === "local_ready"
-                      ? "Saved on the venue computer. Upload and email are not enabled yet."
+                      ? "Saved safely at the venue. Waiting for Google Drive upload; staff can queue older recordings."
                       : session.status === "failed"
-                        ? "The capture did not finish normally. Any partial video is retained for admin review."
+                        ? (["upload","sharing"].includes(session.failure_stage || "") ? "Your video is saved locally, but Drive upload or sharing needs attention. Ask staff to retry." : "The capture did not finish normally. Any partial video is retained for admin review.")
                         : session.stop_requested_at &&
                             activeStates.includes(session.status)
                           ? "Stop requested; waiting for recorder."

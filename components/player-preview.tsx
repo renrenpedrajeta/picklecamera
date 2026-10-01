@@ -468,7 +468,7 @@ export default function PlayerPreview({
                 icon: Download,
                 title: "Keep the good stuff",
                 copy: livePanel
-                  ? "Your video is saved on the venue computer. Private Drive links and email delivery are coming next."
+                  ? "Your video is saved at the venue and uploaded when Drive is connected. Open your private link from recent recordings."
                   : "Get a private Google Drive link. Watch, download, and relive your game.",
               },
             ].map((step, i) => (

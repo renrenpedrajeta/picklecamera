@@ -98,6 +98,7 @@ test("recorder pairing, leases, result isolation, RLS and stale health", async (
       source_type: "usb",
       health: "online",
       diagnostic: "connected",
+      audio_source: "",
     };
     async function queue(kind: string) {
       await db.query(

@@ -524,3 +524,6 @@ summary {
   margin-top: 20px;
   font-size: 12px;
 }
+
+.google-drive-card { margin-bottom: 24px; }
+.google-drive-card code { overflow-wrap: anywhere; }

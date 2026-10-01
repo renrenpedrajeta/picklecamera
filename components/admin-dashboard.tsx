@@ -1,4 +1,5 @@
 "use client";
+import GoogleDriveControls, { DriveRetry } from "./google-drive-controls";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -410,13 +411,12 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                   </b>
                 </li>
                 <li>
-                  <span>Google Drive & Gmail</span>
-                  <b className="status-tag">Not connected</b>
+                  <span>Google Drive</span>
+                  <button className="sign-in" onClick={() => setTab("settings")}>Manage connection</button>
                 </li>
               </ul>
               <p className="form-note">
-                Paired recorders can now save match videos locally. Google Drive
-                upload and email delivery are the next stage.
+                Completed matches can upload to private Google Drive storage. Connect the owner’s account in Settings. Email delivery is the next stage.
               </p>
             </section>
             <section className="admin-card">
@@ -631,6 +631,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
         </>
       )}
 
+      {tab === "settings" && <GoogleDriveControls />}
       {tab === "settings" && (
         <section className="admin-card settings-card">
           <div className="eyebrow">YOUR VENUE, YOUR DEFAULTS</div>
@@ -794,11 +795,12 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                           </p>
                           <p>Reason: {session.stop_reason || "—"}</p>
                           <p>Failure stage: {session.failure_stage || "—"}</p>
+                          {(session.status === "local_ready" || ["upload","sharing"].includes(session.failure_stage || "")) && <DriveRetry sessionId={session.id}/>}
+                          {session.status === "ready" && <a className="sign-in" target="_blank" rel="noopener noreferrer" href={`/api/recordings/${session.id}/playback`}>View on Google Drive</a>}
                           {session.status === "local_ready" && (
                             <p>
                               Video saved on the venue recorder in its protected
-                              captures folder, under this session ID. Drive
-                              upload and email are not enabled yet.
+                              captures folder, under this session ID. Connect Google Drive in Settings to upload it.
                             </p>
                           )}
                         </details>
