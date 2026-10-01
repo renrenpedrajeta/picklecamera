@@ -766,3 +766,112 @@
     font-size: 68px !important;
   }
 }
+
+/* Reserve space for every welcome element using the visible landscape viewport.
+   Scale against both dimensions instead of hiding overflow or cropping content. */
+@media (orientation: landscape) {
+  .tablet--welcome {
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 2.6dvh 4.5vw 2.2dvh;
+  }
+  .tablet--welcome .tablet-header {
+    flex: 0 0 13dvh;
+    height: auto;
+    min-height: 0;
+    padding-bottom: 2.4dvh;
+  }
+  .tablet--welcome .tablet-brand {
+    gap: min(1.8vw, 2.4dvh);
+  }
+  .tablet--welcome .tablet-brand img {
+    width: min(5.94vw, 7.92dvh);
+    height: 10dvh;
+  }
+  .tablet--welcome .tablet-brand strong {
+    font-size: min(2.22vw, 2.95dvh);
+    letter-spacing: 0.28vw;
+  }
+  .tablet--welcome .tablet-brand span {
+    font-size: min(0.97vw, 1.3dvh);
+    letter-spacing: 0.35vw;
+    margin-top: 1.1dvh;
+  }
+  .tablet--welcome .tablet-welcome {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    gap: 2dvh;
+    padding: 5.3dvh 0 0;
+  }
+  .tablet--welcome .tablet-hero {
+    min-height: 0;
+    grid-template-columns: minmax(0, 0.97fr) minmax(0, 1.03fr);
+  }
+  .tablet--welcome .tablet-copy {
+    min-width: 0;
+  }
+  .tablet--welcome .tablet-eyebrow {
+    font-size: min(1.04vw, 1.39dvh);
+    letter-spacing: 0.28vw;
+    margin: 0;
+  }
+  .tablet--welcome .tablet-eyebrow i {
+    width: min(0.9vw, 1.2dvh);
+    height: min(0.9vw, 1.2dvh);
+    margin-right: 1.1vw;
+  }
+  .tablet--welcome .tablet-copy h1 {
+    font-size: min(6.65vw, 9.2dvh);
+    margin: 3.7dvh 0 3.9dvh;
+    letter-spacing: -0.28vw;
+  }
+  .tablet--welcome .tablet-tagline {
+    font-size: min(1.75vw, 2.4dvh);
+  }
+  .tablet--welcome .tablet-art {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    min-height: 0;
+    justify-self: end;
+  }
+  .tablet--welcome .tablet-art .court-art {
+    width: 98%;
+    height: 100%;
+  }
+  .tablet--welcome .tablet-tap {
+    margin: 0;
+    font-size: min(3.32vw, 4.42dvh);
+    gap: 1.4dvh;
+  }
+  .tablet--welcome .tap-hand {
+    width: min(4.98vw, 6.63dvh);
+    height: min(5.6vw, 7.46dvh);
+    transform: none;
+  }
+  .tablet--welcome .tap-hand span {
+    width: 89%;
+    height: 79%;
+    border-width: min(0.35vw, 0.46dvh);
+  }
+  .tablet--welcome .tap-hand span:after {
+    inset: 9%;
+    border-width: min(0.28vw, 0.37dvh);
+  }
+  .tablet--welcome .tap-hand svg {
+    width: 82%;
+    height: 80%;
+    left: 18%;
+    top: 28%;
+  }
+  .tablet--welcome .tablet-powered {
+    position: static;
+    justify-self: end;
+    font-size: min(1.38vw, 1.84dvh);
+  }
+}

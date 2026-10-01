@@ -166,7 +166,7 @@ export default function TabletKiosk({
     .padStart(2, "0")}:${(remaining % 60).toString().padStart(2, "0")}`;
   return (
     <main
-      className="tablet"
+      className={`tablet${!session && screen === "welcome" ? " tablet--welcome" : ""}`}
       onPointerDown={() => (lastTouch.current = Date.now())}
       onKeyDown={() => (lastTouch.current = Date.now())}
     >
