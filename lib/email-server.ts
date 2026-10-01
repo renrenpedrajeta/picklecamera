@@ -25,6 +25,7 @@ export async function deliverNextEmail(recorderId:string) {
     // Re-check our lease just before an external side effect.
     const lease=await db.from("email_jobs").select("file_id").eq("file_id",job.file_id).eq("lease_token",job.lease_token).eq("status","sending").gt("lease_until",new Date(Date.now()+30000).toISOString()).maybeSingle();
     if (lease.error || !lease.data) return;
+    if (Date.parse(file.expires_at)<=Date.now()) throw new MailError("recording_expired","failed");
     sending=true;
     const id=await sendGmail(accessToken,raw);
     const saved=await db.from("email_jobs").update({status:"sent",gmail_message_id:id,sent_at:new Date().toISOString(),lease_until:null,safe_error:null}).eq("file_id",job.file_id).eq("lease_token",job.lease_token).eq("status","sending");

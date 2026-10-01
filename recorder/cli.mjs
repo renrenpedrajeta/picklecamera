@@ -22,6 +22,7 @@ import { randomUUID } from "node:crypto";
 import { syncCaptures } from "./capture-manager.mjs";
 import { uploadLoop } from "./drive-upload.mjs";
 import { emailLoop } from "./email-delivery.mjs";
+import { cleanupLoop } from "./cleanup.mjs";
 
 const home = resolve(process.env.CASA_RECORDER_HOME || ".local/recorder");
 const configPath = join(home, "config.json");
@@ -108,7 +109,7 @@ async function api(config, path, body, authenticated = true) {
   const response = await fetch(`${config.url}/api/recorder/${path}`, {
     method: "POST",
     redirect: "error",
-    signal: AbortSignal.timeout(["uploads","emails"].includes(path) ? 60000 : 12000),
+    signal: AbortSignal.timeout(["uploads","emails","cleanup"].includes(path) ? 60000 : 12000),
     headers: {
       "Content-Type": "application/json",
       ...(authenticated ? { Authorization: `Bearer ${config.token}` } : {}),
@@ -252,6 +253,7 @@ async function main() {
     const pendingPath = join(home, "completion.json");
     const uploads = uploadLoop(home, config, api, () => stopping);
     const emails = emailLoop(config, api, () => stopping);
+    const cleanup = cleanupLoop(home, config, api, () => stopping);
     try {
       while (!stopping) {
         try {
@@ -317,6 +319,7 @@ async function main() {
       stopping = true;
       await uploads;
       await emails;
+      await cleanup;
       process.off("SIGINT", stop);
       process.off("SIGTERM", stop);
     }

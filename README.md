@@ -101,7 +101,7 @@ It creates three temporary test identities and its own court/recorder/camera/ses
 
 ## Agreed next stages
 
-1. Complete live Gmail delivery verification, then implement retention cleanup for Drive and local files.
+1. Drive upload, playback, Gmail delivery, and expiry cleanup have been implemented and live-tested.
 2. Verify the complete workflow with actual venue hardware and two player identities, then deploy the web app to Vercel.
 
 Default duration is 900 seconds and retention is 86400 seconds after successful upload. Venue time zone is Asia/Manila; final camera hardware remains unconfirmed. Windows is the first supported recorder OS. The local recorder runs independently of the player's browser.
@@ -114,9 +114,9 @@ Default duration is 900 seconds and retention is 86400 seconds after successful 
 4. Restart the recorder to load its background upload loop. New completed recordings created after the first connection queue automatically. Existing local recordings require Upload / retry Drive in Recording logs. Use a real Google-account recipient; the example.com demo address cannot receive private Drive access.
 5. Uploads run directly from the venue PC to Google's resumable endpoint in 4 MiB chunks, independently of camera control. The web app only handles metadata and sharing. The worker queries acknowledged offsets after interruptions; persisted pre-generated file IDs prevent duplicate Drive files. A verified byte count and MD5 are required before sharing.
 6. The owner and the recording's original verified recipient are the only allowed file permissions. Sharing suppresses Google notification email. The app becomes Ready only after the reader permission is confirmed. View on Google Drive rechecks the app session and row-level ownership before redirecting. Sign into Google as the same recipient; Google may need time to process MP4 playback.
-7. Failures appear under Settings > Recent uploads. Transient failures back off, up to eight claims before manual retry. Reconnection preserves the original auto-upload cutoff. A restarted recorder resumes after the previous three-minute lease expires. Original videos stay local. Do not delete them manually during upload.
+7. Failures appear under Settings > Recent uploads. Transient failures back off, up to eight claims before manual retry. Reconnection preserves the original auto-upload cutoff. A restarted recorder resumes after the previous three-minute lease expires. Original videos stay local until expiry; the cleanup worker then deletes them. Do not delete them manually during upload.
 
-The planned viewing deadline is stored after upload using the current retention setting. The app hides playback links after that deadline, but automatic Drive deletion remains in the next build. No claim is made that an expired app link deletes the remote video. OAuth authorization and actual recipient playback must be verified with the owner and player Google accounts before calling this a completed live integration.
+The planned viewing deadline is stored after upload using the current retention setting. The app hides playback links at that deadline. The recorder cleanup worker permanently deletes the Drive video and then its local copy; outages or revoked credentials delay physical deletion until recovery. OAuth authorization and actual recipient playback must be verified with the owner and player Google accounts before calling this a completed live integration.
 
 References: [Google resumable uploads and pre-generated IDs](https://developers.google.com/workspace/drive/api/guides/manage-uploads), [private sharing](https://developers.google.com/workspace/drive/api/guides/manage-sharing), [server OAuth](https://developers.google.com/identity/protocols/oauth2/web-server).
 
@@ -129,4 +129,15 @@ The recorder runs a separate ten-second email poll, so sending is independent of
 
 Known rejected rate-limited requests retry with exponential backoff and Retry-After, up to eight attempts. Failed jobs can be retried by admins. Gmail does not support send idempotency: timeouts, server errors, or a crashed worker after claiming a send become Unknown and are not resent automatically. Check the owner's Sent folder before manual recovery. A stable Message-ID aids investigation but is not treated as deduplication. Sent means Gmail accepted the message, not that it reached the recipient inbox. Email failure does not revoke playback or erase recordings.
 
-Testing uses fake Gmail responses and a temporary database; automated tests never send real mail. Live delivery requires owner Gmail consent and verification with the intended recipient. Retention deletion remains a separate build.
+Testing uses fake Gmail responses and a temporary database; automated tests never send real mail. Live delivery requires owner Gmail consent and verification with the intended recipient. Retention deletion is handled by the cleanup worker.
+
+
+## Retention and permanent deletion
+
+Migration 010 adds a service-only cleanup queue. Every ten seconds the recorder claims at most one expired, successfully uploaded recording belonging to it. The saved expiry is calculated at upload from the retention setting (default 24 hours); changing settings never shortens existing recordings. The worker checks the stored Drive ID, original upload folder, owner and video MIME type, then calls Drive files.delete (permanent deletion, not Trash). A missing Drive file is idempotently treated as already absent. Root/account changes or permission failures are surfaced and retried with backoff up to one hour, without abandoning the job.
+
+After cloud deletion is persisted, only the corresponding captures/<session-id>/video.mp4 is unlinked locally. Path traversal, symbolic links and non-finalized capture states are rejected; no recursive directory deletion is used. A lost acknowledgement retries safely. Metadata and audit records remain, but no video backup is created. Unuploaded/failed captures have no upload-based expiry and are not purged by this policy.
+
+Admin Settings shows cleanup state and errors. Players see expired/deleted status. Email queues cannot send new links for expired videos. The current scheduler runs on the venue recorder: leave it running and online. Physical deletion is eventual rather than guaranteed at the exact expiry second; cloud-independent scheduling can be configured during deployment. Never describe a hidden playback link alone as proof of remote deletion.
+
+Validation includes isolated database expiry/lease/RLS tests, mocked Drive errors, local path tests, and a live generated one-second black-video fixture whose Drive file and local copy were both deleted. Actual match recordings were not prematurely expired for testing.

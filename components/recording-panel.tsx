@@ -36,6 +36,8 @@ const labels: Record<string, string> = {
   uploading: "Uploading",
   sharing: "Preparing access",
   ready: "Ready",
+  deleting: "Expired — cleanup pending",
+  deleted: "Expired — video deleted",
 };
 export default function RecordingPanel({ email }: { email: string }) {
   const [data, setData] = useState<Snapshot>();
@@ -256,7 +258,7 @@ export default function RecordingPanel({ email }: { email: string }) {
                 <div>
                   <strong>{session.status === "failed" && ["upload","sharing"].includes(session.failure_stage || "") ? "Drive needs attention" : labels[session.status] || session.status}</strong>
                   {session.playback_available && <p><a className="sign-in" href={`/api/recordings/${session.id}/playback`} target="_blank" rel="noopener noreferrer">View on Google Drive</a></p>}
-                  {session.status === "ready" && <p className="form-note">Sign into Google using your recipient email. Google may still be processing the video. Planned viewing deadline: {session.expires_at ? new Date(session.expires_at).toLocaleString() : "Not set"}. Automatic Drive deletion is not enabled yet.</p>}
+                  {session.status === "ready" && <p className="form-note">{session.playback_available ? "Sign into Google using your recipient email. Google may still be processing the video." : "This recording has expired and is awaiting cleanup."} Viewing deadline: {session.expires_at ? new Date(session.expires_at).toLocaleString() : "Not set"}. Videos are permanently deleted after expiry.</p>}
                   <p className="form-note">
                     {session.status === "local_ready"
                       ? "Saved safely at the venue. Waiting for Google Drive upload; staff can queue older recordings."

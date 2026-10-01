@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import EmailControls from "./email-controls";
+import CleanupControls from "./cleanup-controls";
 type GoogleStatus = {
   configured: boolean; redirect: string;
   integration: {owner_email:string;connected_at:string;safe_error:string|null} | null;
-  jobs: {file_id:string;status:string;attempts:number;message:string|null;recording_files:{session_id:string}}[];
+  jobs: {file_id:string;status:string;attempts:number;message:string|null;recording_files:{session_id:string;status:string}}[];
 };
 export default function GoogleDriveControls() {
   const [data,setData]=useState<GoogleStatus>();
@@ -34,9 +35,9 @@ export default function GoogleDriveControls() {
     {data && !data.configured && <p className="form-error">Google credentials are missing from the server configuration.</p>}
     {data?.redirect && <p className="form-note">In Google Cloud Console → Google Auth Platform → Clients, select this app’s client and add this exact Authorized redirect URI (not JavaScript origin): <code>{data.redirect}</code>. A redirect_uri_mismatch must be corrected there before Google can return to this app.</p>}
     {message && <p role="status" className="form-note">{message}</p>}
-    <p className="form-note">Automatic deletion is not enabled yet. Local originals are retained. The displayed viewing deadline is the planned retention deadline; removing a link from the app does not yet delete its Drive file.</p>
-    {!!data?.jobs.length && <><h3>Recent uploads</h3><ul className="activity-list">{data.jobs.map(job=><li key={job.file_id}><div><strong>{job.status}</strong><p className="form-note">{job.recording_files.session_id} · {job.attempts} attempts</p>{job.message && <p className="form-error">{job.message}</p>}{job.status==="failed" && <DriveRetry sessionId={job.recording_files.session_id}/>}</div></li>)}</ul></>}
-  </section><EmailControls /></>;
+    <p className="form-note">Expired videos are permanently deleted from Drive and the venue computer by the recorder's cleanup worker. No video backup is retained.</p>
+    {!!data?.jobs.length && <><h3>Recent uploads</h3><ul className="activity-list">{data.jobs.map(job=><li key={job.file_id}><div><strong>{["deleted","deleting"].includes(job.recording_files.status)?"Expired":job.status}</strong><p className="form-note">{job.recording_files.session_id} · {job.attempts} attempts</p>{job.message && <p className="form-error">{job.message}</p>}{job.status==="failed" && <DriveRetry sessionId={job.recording_files.session_id}/>}</div></li>)}</ul></>}
+  </section><EmailControls /><CleanupControls /></>;
 }
 export function DriveRetry({sessionId}:{sessionId:string}) {
   const [message,setMessage]=useState("");
