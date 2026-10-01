@@ -243,7 +243,7 @@ export default function RecordingPanel({ email }: { email: string }) {
             </p>
           )}
           <p className="form-note">
-            {(active ? active.audio_enabled : selected?.audio_enabled) ? "Microphone on — video and audio will be recorded." : "Video only — microphone off."} Clips are saved on the venue computer, then uploaded when Google Drive is connected. Private viewing links appear below. Email delivery is coming next.
+            {(active ? active.audio_enabled : selected?.audio_enabled) ? "Microphone on — video and audio will be recorded." : "Video only — microphone off."} Clips are saved on the venue computer, then uploaded when Google Drive is connected. Private viewing links appear below and are emailed when the venue has enabled Gmail delivery.
           </p>
         </aside>
       </div>

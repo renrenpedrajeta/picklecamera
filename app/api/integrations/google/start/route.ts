@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const {error} = await db.from("google_oauth_states").insert({state_hash:createHash("sha256").update(state).digest("hex"),admin_id:account.id,expires_at:new Date(Date.now()+600000).toISOString()});
     if (error) throw error;
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    url.search = new URLSearchParams({client_id:config.clientId,redirect_uri:config.redirect,response_type:"code",scope:"https://www.googleapis.com/auth/drive",access_type:"offline",prompt:"consent",state,login_hint:config.owner}).toString();
+    url.search = new URLSearchParams({client_id:config.clientId,redirect_uri:config.redirect,response_type:"code",scope:"https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send",access_type:"offline",prompt:"consent",state,login_hint:config.owner}).toString();
     const response = NextResponse.redirect(url,303);
     response.cookies.set("cb_google_state",state,{httpOnly:true,sameSite:"lax",secure:new URL(config.redirect).protocol === "https:",maxAge:600,path:"/api/integrations/google"});
     return response;

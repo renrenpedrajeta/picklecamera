@@ -5,6 +5,7 @@ import { recorderDatabase } from "@/lib/recorder-server";
 import { googleConfig, googleToken } from "@/lib/google-server";
 import { encryptSecret } from "@/lib/google-crypto";
 import { DriveError, GoogleDrive } from "@/lib/google-drive";
+import { GMAIL_SEND_SCOPE } from "@/lib/gmail";
 export async function GET(request: NextRequest) {
   const config = googleConfig();
   const back = new URL("/admin",config.redirect);
@@ -25,10 +26,12 @@ export async function GET(request: NextRequest) {
     if (identity.user?.emailAddress?.toLowerCase() !== config.owner.toLowerCase()) throw new DriveError("wrong_google_account");
     await drive.privateFolder(config.root,config.owner);
     if (!tokens.refresh_token) throw new DriveError("google_reconnect_required");
-    const previous = await db.from("google_integration").select("connected_at,owner_email,root_folder_id").eq("id",true).maybeSingle();
+    const previous = await db.from("google_integration").select("connected_at,owner_email,root_folder_id,gmail_authorized_at").eq("id",true).maybeSingle();
     if (previous.error) throw previous.error;
     const connectedAt = previous.data?.owner_email === config.owner && previous.data?.root_folder_id === config.root ? previous.data.connected_at : new Date().toISOString();
-    const saved = await db.from("google_integration").upsert({id:true,owner_email:config.owner,root_folder_id:config.root,refresh_token_encrypted:encryptSecret(tokens.refresh_token),connected_at:connectedAt,safe_error:null});
+    const gmailGranted=String(tokens.scope || "").split(" ").includes(GMAIL_SEND_SCOPE);
+    const gmailAt=gmailGranted ? (previous.data?.owner_email===config.owner ? previous.data.gmail_authorized_at : null) || new Date().toISOString() : null;
+    const saved = await db.from("google_integration").upsert({id:true,owner_email:config.owner,root_folder_id:config.root,refresh_token_encrypted:encryptSecret(tokens.refresh_token),connected_at:connectedAt,safe_error:null,gmail_authorized_at:gmailAt});
     if (saved.error) throw saved.error;
     result = "connected";
   } catch (e) { if (e instanceof DriveError) result=e.code; }

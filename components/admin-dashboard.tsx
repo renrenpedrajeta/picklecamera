@@ -418,7 +418,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                 </li>
               </ul>
               <p className="form-note">
-                Completed matches can upload to private Google Drive storage. Connect the owner’s account in Settings. Email delivery is the next stage.
+                Completed matches upload to private Google Drive storage. Enable Gmail delivery in Settings to email playback links automatically.
               </p>
             </section>
             <section className="admin-card">

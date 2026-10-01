@@ -35,7 +35,7 @@ export async function connectedDrive() {
   try {
     const tokens = await googleToken({grant_type:"refresh_token",refresh_token:decryptSecret(data.refresh_token_encrypted)});
     if (data.safe_error) await db.from("google_integration").update({safe_error:null}).eq("id",true);
-    return {db,integration:data,drive:new GoogleDrive(tokens.access_token)};
+    return {db,integration:data,drive:new GoogleDrive(tokens.access_token),accessToken:tokens.access_token as string};
   } catch(e) {
     await db.from("google_integration").update({safe_error:e instanceof DriveError?e.code:"google_temporarily_unavailable"}).eq("id",true);
     throw e;
