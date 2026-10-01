@@ -43,10 +43,13 @@
   gap: 26px;
 }
 .tablet-brand img {
-  width: 86px;
+  width: 108px;
   height: 108px;
   border-radius: 50%;
-  object-fit: fill;
+  object-fit: contain;
+  flex-shrink: 0;
+  /* The supplied square image has horizontal margins around an oval mark. */
+  transform: scaleX(1.14);
   mix-blend-mode: multiply;
 }
 .tablet-brand strong {
@@ -395,7 +398,7 @@
     height: 115px;
   }
   .tablet-brand img {
-    width: 65px;
+    width: 83px;
     height: 83px;
   }
   .tablet-brand strong {
@@ -466,7 +469,7 @@
     height: 118px;
   }
   .tablet-brand img {
-    width: 65px;
+    width: 83px;
     height: 83px;
   }
   .tablet-brand {
@@ -588,7 +591,7 @@
     height: 93px;
   }
   .tablet-brand img {
-    width: 46px;
+    width: 59px;
     height: 59px;
   }
   .tablet-brand {
@@ -647,7 +650,7 @@
     height: 98px;
   }
   .tablet-brand img {
-    width: 61px;
+    width: 76px;
     height: 76px;
   }
   .tablet-brand strong {
@@ -787,16 +790,16 @@
     gap: min(1.8vw, 2.4dvh);
   }
   .tablet--welcome .tablet-brand img {
-    width: min(5.94vw, 7.92dvh);
+    width: 10dvh;
     height: 10dvh;
   }
   .tablet--welcome .tablet-brand strong {
     font-size: min(2.22vw, 2.95dvh);
-    letter-spacing: 0.28vw;
+    letter-spacing: min(0.28vw, 0.37dvh);
   }
   .tablet--welcome .tablet-brand span {
     font-size: min(0.97vw, 1.3dvh);
-    letter-spacing: 0.35vw;
+    letter-spacing: min(0.35vw, 0.46dvh);
     margin-top: 1.1dvh;
   }
   .tablet--welcome .tablet-welcome {
@@ -808,6 +811,10 @@
     padding: 5.3dvh 0 0;
   }
   .tablet--welcome .tablet-hero {
+    /* Keep the two sections together when width grows beyond the artwork height. */
+    width: min(100%, 130dvh);
+    justify-self: center;
+    gap: min(2vw, 2.7dvh);
     min-height: 0;
     grid-template-columns: minmax(0, 0.97fr) minmax(0, 1.03fr);
   }
@@ -816,18 +823,18 @@
   }
   .tablet--welcome .tablet-eyebrow {
     font-size: min(1.04vw, 1.39dvh);
-    letter-spacing: 0.28vw;
+    letter-spacing: min(0.28vw, 0.37dvh);
     margin: 0;
   }
   .tablet--welcome .tablet-eyebrow i {
     width: min(0.9vw, 1.2dvh);
     height: min(0.9vw, 1.2dvh);
-    margin-right: 1.1vw;
+    margin-right: min(1.1vw, 1.47dvh);
   }
   .tablet--welcome .tablet-copy h1 {
     font-size: min(6.65vw, 9.2dvh);
     margin: 3.7dvh 0 3.9dvh;
-    letter-spacing: -0.28vw;
+    letter-spacing: max(-0.28vw, -0.37dvh);
   }
   .tablet--welcome .tablet-tagline {
     font-size: min(1.75vw, 2.4dvh);
@@ -838,7 +845,7 @@
     max-height: 100%;
     max-width: 100%;
     min-height: 0;
-    justify-self: end;
+    justify-self: start;
   }
   .tablet--welcome .tablet-art .court-art {
     width: 98%;
