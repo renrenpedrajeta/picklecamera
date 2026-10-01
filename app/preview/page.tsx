@@ -1,4 +1,5 @@
-import PlayerPreview from "@/components/player-preview";
+import TabletKiosk from "@/components/tablet-kiosk";
+import "../tablet.css";
 export default function Page() {
-  return <PlayerPreview />;
+  return <TabletKiosk preview />;
 }

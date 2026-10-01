@@ -1,6 +1,6 @@
 # Casa Batik match recording
 
-Fourth milestone: player start/stop recording, durable capture jobs, local MP4 saving and recorder recovery. The original interactive design preview remains at `/preview`.
+Tablet guest recording with Google Drive upload, emailed playback links, and automatic retention cleanup. The tablet design preview is at `/preview` and cannot record.
 
 ## Run
 
@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. Sign in at `/login` or `/admin/login`. `/preview` needs no credentials and is explicitly simulated.
+Open http://127.0.0.1:3000. Administrators sign in at `/admin/login`; players do not need accounts. `/preview` needs no credentials and cannot record.
 
 ```sh
 npm run typecheck
@@ -25,11 +25,11 @@ npm test
 - Every admin mutation validates the request origin, signed-in account, active profile, database role and input; database RLS also restricts access.
 - Admin overview, court creation/editing/deactivation, recorder entries, dynamic network/USB camera assignments and primary-camera configuration.
 - Duration/retention/time-zone settings, recent activity, and latest 100 recording sessions with email/court/status/date filters.
-- Signed-in players see active courts from the database, their verified recipient email, saved limits, and their own session history.
+- Guests use an admin-enabled tablet, choose an available court, enter an email, confirm details, and record without an account. No email verification is claimed.
 - One-time recorder pairing, scoped revocable machine tokens, heartbeats, ONVIF network discovery, Windows USB discovery, and single-frame connection tests. Hardware health is not editable by an admin browser.
 - Players select an available court and start/stop its primary camera. Session settings are snapshotted at Start; the local worker enforces the duration even without a browser or cloud connection. Only the owner or an administrator can request Stop.
-- Successful clips are marked **Saved locally**, not Ready for delivery. Drive upload, playback links and mail delivery remain the next stage.
-- `/preview` retains the original simulation, isolated from live data and clearly labeled.
+- Successful clips upload to Drive, receive a read-only playback link, and queue Gmail delivery. Expired cloud and local videos are permanently deleted by the recorder worker.
+- `/preview` uses the same tablet UI with a labeled read-only fixture and never starts a capture.
 
 The supplied original logo is preserved in `public/casa-batik-logo.jpg`. Court artwork is an original SVG illustration. Fonts use Google Fonts with local system fallbacks.
 
@@ -73,7 +73,7 @@ Discovery/test commands use 90-second leases, at most three attempts, and a ten-
 
 1. Run migrations and restart the local recorder after updating the code. Its dashboard version should be `0.4.0`.
 2. Ensure the court has an enabled primary camera. Run **Test connection** if the camera has not passed a check or its last capture failed.
-3. Sign in as the demo player, select **Court 1**, then click **Start recording**. Wait for **Recording** before playing.
+3. Enable the tablet as described below, sign out of admin, tap the welcome screen, select **Court 1**, enter your email, and confirm **Start recording**. Wait for the live countdown before playing.
 4. Click **Stop recording**. The UI will show **Saved locally** when finalization is confirmed. Closing/reloading the browser does not stop capture; reopening the page restores the active session.
 5. On the recorder PC, open `.local/recorder/captures/<session-id>/video.mp4` to play the clip. The admin Recording logs show the session ID. Local files are private and are not served by the web app. Google Drive viewing is available after owner authorization; email delivery is available after Gmail authorization.
 
@@ -102,7 +102,7 @@ It creates three temporary test identities and its own court/recorder/camera/ses
 ## Agreed next stages
 
 1. Drive upload, playback, Gmail delivery, and expiry cleanup have been implemented and live-tested.
-2. Verify the complete workflow with actual venue hardware and two player identities, then deploy the web app to Vercel.
+2. Verify the complete workflow with actual venue hardware and guest email delivery, then deploy the web app to Vercel.
 
 Default duration is 900 seconds and retention is 86400 seconds after successful upload. Venue time zone is Asia/Manila; final camera hardware remains unconfirmed. Windows is the first supported recorder OS. The local recorder runs independently of the player's browser.
 
@@ -111,9 +111,9 @@ Default duration is 900 seconds and retention is 86400 seconds after successful 
 1. Configure GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, GOOGLE_DRIVE_ROOT_FOLDER_ID, GOOGLE_SENDER_EMAIL and a stable base64 TOKEN_ENCRYPTION_KEY containing 32 random bytes. These are server secrets; never prefix them with NEXT_PUBLIC or put them in recorder configuration. Keep the encryption key across deployments and backups.
 2. Enable Drive API and register the exact callback shown in Admin Settings. Use the same host for the app and callback (127.0.0.1 and localhost have different cookies). Set the venue time zone; Casa Batik uses Asia/Manila.
 3. Sign in as the venue admin, open Settings, and Connect Google Drive. Authorize the configured owner. This POC uses the Drive scope because the destination is an existing owner-supplied folder; it also requests the send-only gmail.send scope for email notifications. The destination must be an owner-only My Drive folder; shared/public folders fail closed rather than exposing player recordings through inherited permissions.
-4. Restart the recorder to load its background upload loop. New completed recordings created after the first connection queue automatically. Existing local recordings require Upload / retry Drive in Recording logs. Use a real Google-account recipient; the example.com demo address cannot receive private Drive access.
+4. Restart the recorder to load its background upload loop. New completed recordings created after the first connection queue automatically. Existing local recordings require Upload / retry Drive in Recording logs. Use a real recipient email. New guest recordings use link access; older private recordings still require the matching Google account.
 5. Uploads run directly from the venue PC to Google's resumable endpoint in 4 MiB chunks, independently of camera control. The web app only handles metadata and sharing. The worker queries acknowledged offsets after interruptions; persisted pre-generated file IDs prevent duplicate Drive files. A verified byte count and MD5 are required before sharing.
-6. The owner and the recording's original verified recipient are the only allowed file permissions. Sharing suppresses Google notification email. The app becomes Ready only after the reader permission is confirmed. View on Google Drive rechecks the app session and row-level ownership before redirecting. Sign into Google as the same recipient; Google may need time to process MP4 playback.
+6. Guest sessions snapshot `sharing_mode: link`; only those files receive `anyone/reader` with file discovery disabled. Anyone holding the emailed link can watch without a Google account. Parent folders remain private. Legacy sessions keep owner/recipient-only sharing and their authenticated playback route. The app becomes Ready only after sharing is confirmed. Google may need time to process MP4 playback.
 7. Failures appear under Settings > Recent uploads. Transient failures back off, up to eight claims before manual retry. Reconnection preserves the original auto-upload cutoff. A restarted recorder resumes after the previous three-minute lease expires. Original videos stay local until expiry; the cleanup worker then deletes them. Do not delete them manually during upload.
 
 The planned viewing deadline is stored after upload using the current retention setting. The app hides playback links at that deadline. The recorder cleanup worker permanently deletes the Drive video and then its local copy; outages or revoked credentials delay physical deletion until recovery. OAuth authorization and actual recipient playback must be verified with the owner and player Google accounts before calling this a completed live integration.
@@ -125,7 +125,7 @@ References: [Google resumable uploads and pre-generated IDs](https://developers.
 
 Migration 009 adds a service-only email outbox. Enable Gmail API, then use Admin > Settings > Connect / reconnect Drive & Gmail and approve sending as the configured owner. No mailbox reading or deletion permission is requested. The existing callback and encrypted refresh-token storage are reused. New ready uploads after the first Gmail authorization automatically queue; older unexpired recordings have an explicit Send email action. Reauthorization preserves the original email cutoff for the same owner.
 
-The recorder runs a separate ten-second email poll, so sending is independent of capture and video upload. Restart it after updating. Each API request claims at most one job with a three-minute lease. Only confirmed ready, unexpired files are emailed, to the session's original recipient, from GOOGLE_SENDER_EMAIL. Messages include a private Drive URL and the venue-local retention deadline. No localhost links or video attachments are emailed.
+The recorder runs a separate ten-second email poll, so sending is independent of capture and video upload. Restart it after updating. Each API request claims at most one job with a three-minute lease. Only confirmed ready, unexpired files are emailed, to the session's original recipient, from GOOGLE_SENDER_EMAIL. Messages include a Drive URL, the correct access instructions for that session, and the venue-local retention deadline. No localhost links or video attachments are emailed.
 
 Known rejected rate-limited requests retry with exponential backoff and Retry-After, up to eight attempts. Failed jobs can be retried by admins. Gmail does not support send idempotency: timeouts, server errors, or a crashed worker after claiming a send become Unknown and are not resent automatically. Check the owner's Sent folder before manual recovery. A stable Message-ID aids investigation but is not treated as deduplication. Sent means Gmail accepted the message, not that it reached the recipient inbox. Email failure does not revoke playback or erase recordings.
 
@@ -141,3 +141,18 @@ After cloud deletion is persisted, only the corresponding captures/<session-id>/
 Admin Settings shows cleanup state and errors. Players see expired/deleted status. Email queues cannot send new links for expired videos. The current scheduler runs on the venue recorder: leave it running and online. Physical deletion is eventual rather than guaranteed at the exact expiry second; cloud-independent scheduling can be configured during deployment. Never describe a hidden playback link alone as proof of remote deletion.
 
 Validation includes isolated database expiry/lease/RLS tests, mocked Drive errors, local path tests, and a live generated one-second black-video fixture whose Drive file and local copy were both deleted. Actual match recordings were not prematurely expired for testing.
+
+
+## Guest tablet setup (migration 011)
+
+1. On the intended tablet/browser, sign in at `/admin/login` and open **Settings → Guest tablet → Enable this tablet**.
+2. Sign out of admin before handing over the tablet. Sign-out returns to the welcome screen and retains the separate guest device cookie.
+3. Guests tap to start, select an available court, enter their email, check the address/access/audio notice, and confirm recording. The active session survives refresh and has a countdown and Stop control.
+4. After capture, upload and email continue in the background. **Done** clears the tablet immediately; completion screens reset automatically after 45 seconds without a status change. Abandoned forms clear after two minutes of inactivity. A live recording is never stopped by an idle-screen timer.
+5. Clearing browser cookies or using another browser requires enabling that browser again. **Disable this tablet** revokes its guest credential; active captures continue to their limit and remain stoppable by an admin.
+
+The 180-day HttpOnly, SameSite=Strict cookie is independent of Supabase login. Only its SHA-256 hash is stored in a service-only table. Guest APIs require this device credential, validate mutation origins, and expose only its current session without recipient email or historical recordings. Guest RPCs are service-role only and keep the existing court/device locks, rate limit, camera readiness checks, and idempotency. No fake Supabase accounts are created for email addresses. Existing account-owned recordings are retained.
+
+The admin Google OAuth callback, owner credentials, Drive root, Gmail sender and retention process are unchanged. The link-access choice applies only to new guest files, not historical private videos. A forwarded link grants playback until the video is deleted. The local venue recorder still needs to stay running for capture, delivery and cleanup.
+
+Validation: 32 automated tests, production build, API authorization/origin/session checks, landscape and portrait tablet layout review, and a generated one-second green-video guest fixture uploaded through the real worker with verified read-only link permission and Gmail acceptance. This fixture did not open the camera and expires under the regular retention policy.

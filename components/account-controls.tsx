@@ -11,7 +11,7 @@ export default function AccountControls({ account }: { account: Account }) {
     try {
       const response = await fetch("/api/auth/logout", { method: "POST" });
       if (!response.ok) throw new Error();
-      window.location.assign("/login");
+      window.location.assign("/");
     } catch {
       setError("Sign-out failed. Please retry.");
       setBusy(false);

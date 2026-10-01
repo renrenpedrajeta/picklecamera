@@ -8,11 +8,11 @@ function email(value:string) {
     throw new MailError("invalid_email_recipient","failed");
   return value;
 }
-export function recordingMessage(sender:string,recipient:string,file:string,drive:string,expires:string,zone:string) {
+export function recordingMessage(sender:string,recipient:string,file:string,drive:string,expires:string,zone:string,linkAccess=false) {
   email(sender); email(recipient);
   if (!/^[a-f0-9-]{36}$/.test(file)) throw new MailError("invalid_recording","failed");
   const deadline = new Intl.DateTimeFormat("en-PH",{timeZone:zone,dateStyle:"medium",timeStyle:"short"}).format(new Date(expires));
-  const body = `Your Casa Batik match recording is ready.\n\nWatch your recording:\nhttps://drive.google.com/file/d/${driveId(drive)}/view\n\nSign in to Google as ${recipient} to view this private recording.\nGoogle may need a little time to prepare video playback.\n\nPlease save a copy before ${deadline} (${zone}), the scheduled retention deadline.\n\nEnjoy your replay!\nCasa Batik`;
+  const body = `Your Casa Batik match recording is ready.\n\nWatch your recording:\nhttps://drive.google.com/file/d/${driveId(drive)}/view\n\n${linkAccess ? "Anyone with this link can watch. Only forward it to people you want to share your recording with." : `Sign in to Google as ${recipient} to view this private recording.`}\nGoogle may need a little time to prepare video playback.\n\nPlease save a copy before ${deadline} (${zone}), the scheduled retention deadline.\n\nEnjoy your replay!\nCasa Batik`;
   const encoded = Buffer.from(body).toString("base64").match(/.{1,76}/g)!.join("\r\n");
   return Buffer.from([
     `From: Casa Batik <${sender}>`,`To: ${recipient}`,"Subject: Your Casa Batik match recording is ready",

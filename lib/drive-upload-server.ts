@@ -76,7 +76,7 @@ export async function finishUpload(db: DB, recorder: string, fileId: string, tok
   const stage=await db.from("drive_upload_jobs").update({status:"sharing"}).eq("file_id",fileId).eq("lease_token",token);
   if (stage.error) throw stage.error;
   await db.from("recording_sessions").update({status:"sharing"}).eq("id",session.id);
-  const permission=await drive.share(job.drive_id,integration.owner_email,session.recipient_email);
+  const permission=session.configuration_snapshot?.sharing_mode === "link" ? await drive.shareLink(job.drive_id,integration.owner_email) : await drive.share(job.drive_id,integration.owner_email,session.recipient_email);
   const final=await db.rpc("finish_drive_upload",{p_file:fileId,p_token:token,p_permission:permission});
   if (final.error || !final.data) throw new DriveError("upload_lease_expired");
   return {ready:true};

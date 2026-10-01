@@ -16,7 +16,7 @@ export function localDay(date: string, zone: string) {
   const get = (type: string) => parts.find(p => p.type === type)!.value;
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
-type Permission = {id: string; type: string; role: string; emailAddress?: string; deleted?: boolean};
+type Permission = {id: string; type: string; role: string; emailAddress?: string; deleted?: boolean; allowFileDiscovery?: boolean};
 export function privatePermissions(permissions: Permission[], owner: string, recipient?: string) {
   return permissions.length > 0 && permissions.every(p => !p.deleted && p.type === "user" && (
     (p.role === "owner" && p.emailAddress?.toLowerCase() === owner.toLowerCase()) ||
@@ -52,7 +52,7 @@ export class GoogleDrive {
     const permissions: Permission[] = [];
     let page = "";
     do {
-      const r = await this.call(`files/${driveId(id)}/permissions?fields=nextPageToken,permissions(id,type,role,emailAddress,deleted)&pageSize=100${page ? "&pageToken="+encodeURIComponent(page) : ""}`);
+      const r = await this.call(`files/${driveId(id)}/permissions?fields=nextPageToken,permissions(id,type,role,emailAddress,deleted,allowFileDiscovery)&pageSize=100${page ? "&pageToken="+encodeURIComponent(page) : ""}`);
       permissions.push(...r.permissions); page = r.nextPageToken || "";
     } while (page);
     return permissions;
@@ -78,6 +78,17 @@ export class GoogleDrive {
     });
     if (!r.ok) throw new DriveError(r.status===401?"google_reconnect_required":"upload_initialization_failed", r.status===429 || r.status>=500 || r.status===409);
     return uploadUri(r.headers.get("location") || "");
+  }
+  async shareLink(id: string, owner: string) {
+    const acceptable = (items: Permission[]) => items.some(p => p.type === "user" && p.role === "owner" && p.emailAddress?.toLowerCase() === owner.toLowerCase()) && items.every(p => !p.deleted && ((p.type === "user" && p.role === "owner" && p.emailAddress?.toLowerCase() === owner.toLowerCase()) || (p.type === "anyone" && p.role === "reader" && p.allowFileDiscovery === false)));
+    let permissions = await this.permissions(id);
+    if (!acceptable(permissions)) throw new DriveError("unexpected_file_permissions");
+    if (!permissions.some(p => p.type === "anyone")) await this.call(`files/${driveId(id)}/permissions?fields=id`, {method:"POST",body:JSON.stringify({type:"anyone",role:"reader",allowFileDiscovery:false})});
+    permissions = await this.permissions(id);
+    if (!acceptable(permissions)) throw new DriveError("unexpected_file_permissions");
+    const permission = permissions.find(p => p.type === "anyone" && p.role === "reader");
+    if (!permission) throw new DriveError("sharing_not_confirmed",true);
+    return permission.id;
   }
   async share(id: string, owner: string, recipient: string) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient) || /@example\.(com|org|net)$/i.test(recipient)) throw new DriveError("real_player_email_required");

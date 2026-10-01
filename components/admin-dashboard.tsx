@@ -1,4 +1,5 @@
 "use client";
+import KioskControls from "./kiosk-controls";
 import GoogleDriveControls, { DriveRetry } from "./google-drive-controls";
 import DriveHealthBanner from "./drive-health-banner";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
@@ -633,6 +634,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
         </>
       )}
 
+      {tab === "settings" && <KioskControls />}
       {tab === "settings" && <GoogleDriveControls />}
       {tab === "settings" && (
         <section className="admin-card settings-card">
