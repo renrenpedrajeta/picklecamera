@@ -3,6 +3,7 @@ import { serverSupabase } from "@/lib/supabase-server";
 import { recorderDatabase } from "@/lib/recorder-server";
 import { json, readBody, sameOrigin } from "@/lib/http";
 import { uuid, InputError } from "@/lib/validation";
+import { checkDriveHealth } from "@/lib/google-server";
 export async function GET() {
   const { account } = await getAccount();
   if (!account) return json({ error: "Please sign in." }, 401);
@@ -72,11 +73,19 @@ export async function POST(request: Request) {
     const body = await readBody(request);
     const db = recorderDatabase();
     if (body.action === "start") {
+      const key = uuid(body.key);
+      const court = uuid(body.court_id);
+      // A lost start response must remain recoverable even if Drive goes down.
+      const existing = await db.from("recording_sessions").select("id").eq("player_id",account.id).eq("idempotency_key",key).maybeSingle();
+      if (existing.error) throw existing.error;
+      if (existing.data) return json({id:existing.data.id});
+      const health = await checkDriveHealth();
+      if (!health.ready) return json({error:"Recording cannot start until Google Drive is ready. Ask the administrator to check the Drive connection and storage. Existing recordings continue saving locally."},503);
       const result = await db.rpc("start_capture", {
         p_player: account.id,
         p_email: account.email,
-        p_court: uuid(body.court_id),
-        p_key: uuid(body.key),
+        p_court: court,
+        p_key: key,
       });
       if (result.error)
         return json(

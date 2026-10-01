@@ -26,12 +26,12 @@ export default function GoogleDriveControls() {
   return <section className="admin-card google-drive-card">
     <div className="eyebrow">PRIVATE MATCH PLAYBACK</div>
     <h2>Google Drive</h2>
-    <p>{data?.integration ? `Connected as ${data.integration.owner_email}. New completed matches upload automatically while the venue recorder is running.` : "Connect the owner’s Google account to upload matches and give each player private viewing access."}</p>
+    <p>{data?.integration ? `Authorization saved for ${data.integration.owner_email}. See the dashboard connection check for current readiness. Completed matches upload while the venue recorder is running.` : "Connect the owner’s Google account to upload matches and give each player private viewing access."}</p>
     {data?.integration?.safe_error && <p role="alert" className="form-error">Google access needs attention. Reconnect the owner's account, then retry affected uploads.</p>}
     <p className="form-note">This connection uses Drive access to the configured existing folder. The folder must be private. Recordings are shared only with their signed-in recipient. Google may need time to process videos before playback.</p>
     {data?.configured && <form method="post" action="/api/integrations/google/start"><button className="primary" type="submit">{data.integration?"Reconnect Google Drive":"Connect Google Drive"}</button></form>}
     {data && !data.configured && <p className="form-error">Google credentials are missing from the server configuration.</p>}
-    {data?.redirect && <p className="form-note">Google authorized redirect URI: <code>{data.redirect}</code></p>}
+    {data?.redirect && <p className="form-note">In Google Cloud Console → Google Auth Platform → Clients, select this app’s client and add this exact Authorized redirect URI (not JavaScript origin): <code>{data.redirect}</code>. A redirect_uri_mismatch must be corrected there before Google can return to this app.</p>}
     {message && <p role="status" className="form-note">{message}</p>}
     <p className="form-note">Email delivery and automatic deletion are not enabled yet. Local originals are retained. The displayed viewing deadline is the planned retention deadline; removing a link from the app does not yet delete its Drive file.</p>
     {!!data?.jobs.length && <><h3>Recent uploads</h3><ul className="activity-list">{data.jobs.map(job=><li key={job.file_id}><div><strong>{job.status}</strong><p className="form-note">{job.recording_files.session_id} · {job.attempts} attempts</p>{job.message && <p className="form-error">{job.message}</p>}{job.status==="failed" && <DriveRetry sessionId={job.recording_files.session_id}/>}</div></li>)}</ul></>}

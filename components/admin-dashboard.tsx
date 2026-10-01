@@ -1,5 +1,6 @@
 "use client";
 import GoogleDriveControls, { DriveRetry } from "./google-drive-controls";
+import DriveHealthBanner from "./drive-health-banner";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -344,6 +345,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
           View player page →
         </a>
       </div>
+      <DriveHealthBanner />
       <nav className="admin-tabs" aria-label="Admin sections">
         {nav.map((item) => (
           <button
