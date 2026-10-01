@@ -33,7 +33,7 @@ function SaveForm({
   resource: string;
   children: ReactNode;
   convert: (form: FormData) => object;
-  onSaved?: () => void;
+  onSaved?: (id?: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -58,7 +58,7 @@ function SaveForm({
       } else {
         setMessage("Saved successfully.");
         router.refresh();
-        onSaved?.();
+        onSaved?.(typeof result.id === "string" ? result.id : undefined);
       }
     } catch {
       setMessage(
@@ -138,14 +138,26 @@ function CameraForm({
   camera,
   device,
   data,
+  selectedRecorderId,
 }: {
   camera?: Camera;
   device?: Device;
   data: AdminData;
+  selectedRecorderId: string;
 }) {
-  const [recorderId, setRecorderId] = useState(camera?.recorder_id || device?.recorder_id || "");
-  const [sourceType, setSourceType] = useState(camera?.source_type || device?.source_type || "network");
-  const microphones = [...new Map(data.devices.filter(d => d.recorder_id === recorderId).flatMap(d => d.audio_sources || []).map(m => [m.device_reference, m])).values()];
+  const recorderId =
+    camera?.recorder_id || device?.recorder_id || selectedRecorderId;
+  const [sourceType, setSourceType] = useState(
+    camera?.source_type || device?.source_type || "network",
+  );
+  const microphones = [
+    ...new Map(
+      data.devices
+        .filter((d) => d.recorder_id === recorderId)
+        .flatMap((d) => d.audio_sources || [])
+        .map((m) => [m.device_reference, m]),
+    ).values(),
+  ];
   return (
     <SaveForm
       resource="cameras"
@@ -176,7 +188,7 @@ function CameraForm({
           Connection type
           <select
             name="source_type"
-            onChange={e => setSourceType(e.target.value as "usb" | "network")}
+            onChange={(e) => setSourceType(e.target.value as "usb" | "network")}
             defaultValue={
               camera?.source_type || device?.source_type || "network"
             }
@@ -185,24 +197,7 @@ function CameraForm({
             <option value="usb">USB camera</option>
           </select>
         </label>
-        <label>
-          Venue recorder
-          <select
-            name="recorder_id"
-            onChange={e => setRecorderId(e.target.value)}
-            defaultValue={camera?.recorder_id || device?.recorder_id || ""}
-            required
-          >
-            <option value="" disabled>
-              Select recorder
-            </option>
-            {data.recorders.map((recorder) => (
-              <option key={recorder.id} value={recorder.id}>
-                {recorder.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <input type="hidden" name="recorder_id" value={recorderId} />
       </div>
       <label>
         Local device reference
@@ -221,12 +216,35 @@ function CameraForm({
       </label>
       <label>
         Recording audio
-        <select key={recorderId + sourceType} name="audio_source" defaultValue={camera?.audio_source || ""}>
+        <select
+          key={recorderId + sourceType}
+          name="audio_source"
+          defaultValue={camera?.audio_source || ""}
+        >
           <option value="">Off — video only</option>
-          {sourceType === "usb" && camera?.audio_source.startsWith("mic-") && !microphones.some(m => m.device_reference === camera.audio_source) && <option value={camera.audio_source}>Configured microphone (rediscover to check availability)</option>}
-          {sourceType === "network" ? <option value="stream">Camera stream microphone</option> : microphones.map(m => <option key={m.device_reference} value={m.device_reference}>{m.name}</option>)}
+          {sourceType === "usb" &&
+            camera?.audio_source.startsWith("mic-") &&
+            !microphones.some(
+              (m) => m.device_reference === camera.audio_source,
+            ) && (
+              <option value={camera.audio_source}>
+                Configured microphone (rediscover to check availability)
+              </option>
+            )}
+          {sourceType === "network" ? (
+            <option value="stream">Camera stream microphone</option>
+          ) : (
+            microphones.map((m) => (
+              <option key={m.device_reference} value={m.device_reference}>
+                {m.name}
+              </option>
+            ))
+          )}
         </select>
-        <span className="form-note">Discover cameras to refresh microphones. Save, then Test connection to check video and selected audio. Players see when audio is enabled.</span>
+        <span className="form-note">
+          Discover cameras to refresh microphones. Save, then Test connection to
+          check video and selected audio. Players see when audio is enabled.
+        </span>
       </label>
       <label>
         Assigned court
@@ -264,14 +282,21 @@ function CameraForm({
   );
 }
 
-function RecorderForm({ recorder }: { recorder?: Recorder }) {
+function RecorderForm({
+  recorder,
+  onSaved,
+}: {
+  recorder?: Recorder;
+  onSaved?: (id?: string) => void;
+}) {
   return (
     <SaveForm
+      onSaved={onSaved}
       resource="recorders"
       convert={(f) => ({ id: recorder?.id, name: f.get("name") })}
     >
       <label>
-        Recorder name
+        Computer name
         <input
           name="name"
           defaultValue={recorder?.name}
@@ -281,7 +306,8 @@ function RecorderForm({ recorder }: { recorder?: Recorder }) {
         />
       </label>
       <p className="form-note">
-        Save the recorder, select it from the list, then pair its local service.
+        Save this computer, then use its pairing code to connect the local
+        service.
       </p>
     </SaveForm>
   );
@@ -292,7 +318,18 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
   const [courtId, setCourtId] = useState("");
   const [cameraId, setCameraId] = useState("");
   const [device, setDevice] = useState<Device>();
-  const [recorderId, setRecorderId] = useState("");
+  const [recorderId, setRecorderId] = useState(
+    () =>
+      (
+        data.recorders.find(recorderOnline) ||
+        data.recorders.find((r) => r.paired_at) ||
+        data.recorders[0]
+      )?.id || "",
+  );
+  const [editingComputer, setEditingComputer] = useState(
+    !data.recorders.length,
+  );
+  const selectedRecorder = data.recorders.find((r) => r.id === recorderId);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [date, setDate] = useState("");
@@ -330,7 +367,7 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
   const nav = [
     { id: "overview", label: "Overview", icon: LayoutGrid },
     { id: "courts", label: "Courts", icon: LayoutGrid },
-    { id: "cameras", label: "Cameras & recorders", icon: CameraIcon },
+    { id: "cameras", label: "Camera setup", icon: CameraIcon },
     { id: "settings", label: "Settings", icon: Settings2 },
     { id: "logs", label: "Recording logs", icon: List },
   ] as const;
@@ -415,11 +452,18 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                 </li>
                 <li>
                   <span>Google Drive</span>
-                  <button className="sign-in" onClick={() => setTab("settings")}>Manage connection</button>
+                  <button
+                    className="sign-in"
+                    onClick={() => setTab("settings")}
+                  >
+                    Manage connection
+                  </button>
                 </li>
               </ul>
               <p className="form-note">
-                Completed matches upload to private Google Drive storage. Enable Gmail delivery in Settings to email playback links automatically.
+                Completed matches upload to private Google Drive storage. Enable
+                Gmail delivery in Settings to email playback links
+                automatically.
               </p>
             </section>
             <section className="admin-card">
@@ -493,21 +537,99 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
       )}
 
       {tab === "cameras" && (
-        <>
-          <div className="admin-callout">
-            <Monitor size={22} />
-            <div>
-              <strong>Bring your cameras onto the court.</strong>
-              <p>
-                Wi-Fi, Ethernet, and USB devices connect through the venue
-                recorder. Pair the computer below, discover cameras, then test
-                and assign them to a court. Players can record from an available
-                primary camera.
-              </p>
-            </div>
+        <section className="admin-card camera-setup">
+          <div className="card-title">
+            <h2>Camera setup</h2>
+            <Monitor size={24} />
           </div>
-          <div className="admin-columns">
-            <section className="admin-card">
+          <p className="form-note">
+            Connect your venue computer, discover its cameras, then choose a
+            court and microphone. One computer can manage multiple cameras.
+          </p>
+          <div className="camera-computer-bar">
+            <label>
+              Venue computer
+              <select
+                aria-label="Venue computer"
+                value={recorderId}
+                onChange={(e) => {
+                  setRecorderId(e.target.value);
+                  setCameraId("");
+                  setDevice(undefined);
+                  setEditingComputer(false);
+                }}
+              >
+                <option value="" disabled>
+                  {data.recorders.length
+                    ? "Choose a computer"
+                    : "Add your venue computer"}
+                </option>
+                {data.recorders.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} —{" "}
+                    {recorderOnline(r)
+                      ? "Connected"
+                      : r.paired_at
+                        ? "Offline"
+                        : "Not paired"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedRecorder && (
+              <button
+                className="sign-in"
+                onClick={() => setEditingComputer((v) => !v)}
+              >
+                {editingComputer ? "Close editor" : "Edit computer"}
+              </button>
+            )}
+            <button
+              className="sign-in"
+              onClick={() => {
+                setRecorderId("");
+                setEditingComputer(true);
+                setCameraId("");
+                setDevice(undefined);
+              }}
+            >
+              <Plus size={15} />
+              Add computer
+            </button>
+          </div>
+          {editingComputer && (
+            <div className="camera-computer-form">
+              <h3>
+                {selectedRecorder
+                  ? "Edit venue computer"
+                  : "Connect a venue computer"}
+              </h3>
+              <RecorderForm
+                key={recorderId || "new"}
+                recorder={selectedRecorder}
+                onSaved={(id) => {
+                  if (id) setRecorderId(id);
+                  setEditingComputer(false);
+                }}
+              />
+            </div>
+          )}
+          {selectedRecorder && (
+            <RecorderControls
+              key={selectedRecorder.id}
+              recorder={selectedRecorder}
+              data={data}
+              onRegister={(selected) => {
+                setCameraId("");
+                setDevice(selected);
+                document
+                  .getElementById("camera-form")
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
+            />
+          )}
+          <div className="camera-setup-columns">
+            <section className="camera-setup-column">
               <div className="card-title">
                 <h2>Cameras</h2>
                 <button
@@ -521,117 +643,63 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                 </button>
               </div>
               <div className="admin-items">
-                {data.cameras.map((camera) => (
-                  <button
-                    key={camera.id}
-                    aria-pressed={cameraId === camera.id}
-                    onClick={() => {
-                      setCameraId(camera.id);
-                      setDevice(undefined);
-                    }}
-                  >
-                    <span>
-                      <strong>{camera.name}</strong>
-                      <small>
-                        {data.courts.find((c) => c.id === camera.court_id)
-                          ?.name || "Unassigned"}{" "}
-                        · {camera.source_type === "usb" ? "USB" : "Network"}
-                        {camera.is_primary ? " · Primary" : ""}
-                      </small>
-                    </span>
-                    <span className="status-tag">
-                      {!camera.enabled
-                        ? "Disabled"
-                        : cameraOnline(camera, data.recorders)
-                          ? "Connection passed"
-                          : "Test required"}
-                    </span>
-                  </button>
-                ))}
+                {data.cameras
+                  .filter((c) => c.recorder_id === recorderId)
+                  .map((camera) => (
+                    <button
+                      key={camera.id}
+                      aria-pressed={cameraId === camera.id}
+                      onClick={() => {
+                        setCameraId(camera.id);
+                        setDevice(undefined);
+                      }}
+                    >
+                      <span>
+                        <strong>{camera.name}</strong>
+                        <small>
+                          {data.courts.find((c) => c.id === camera.court_id)
+                            ?.name || "Unassigned"}{" "}
+                          · {camera.source_type === "usb" ? "USB" : "Network"}
+                          {camera.is_primary ? " · Primary" : ""}
+                        </small>
+                      </span>
+                      <span className="status-tag">
+                        {!camera.enabled
+                          ? "Disabled"
+                          : cameraOnline(camera, data.recorders)
+                            ? "Connection passed"
+                            : "Test required"}
+                      </span>
+                    </button>
+                  ))}
               </div>
-              {!data.cameras.length && (
-                <p className="form-note">No cameras registered yet.</p>
+              {!data.cameras.some((c) => c.recorder_id === recorderId) && (
+                <p className="form-note">
+                  No cameras assigned to this computer yet. Discover cameras
+                  above to get started.
+                </p>
               )}
             </section>
-            <section className="admin-card">
+            <section className="camera-setup-column">
               <h2 id="camera-form">
                 {cameraId ? "Edit camera" : "Register a camera"}
               </h2>
-              {data.recorders.length ? (
+              {selectedRecorder ? (
                 <CameraForm
-                  key={cameraId || device?.id || "new"}
+                  key={cameraId || device?.id || recorderId}
                   device={device}
                   camera={data.cameras.find((c) => c.id === cameraId)}
                   data={data}
+                  selectedRecorderId={recorderId}
                 />
               ) : (
                 <p className="form-note">
-                  Add a venue recorder below before registering a camera.
+                  Connect a venue computer above before registering a camera.
                 </p>
               )}
             </section>
           </div>
-          <div className="admin-columns">
-            <section className="admin-card">
-              <div className="card-title">
-                <h2>Venue recorders</h2>
-                <button className="sign-in" onClick={() => setRecorderId("")}>
-                  <Plus size={15} /> Add recorder
-                </button>
-              </div>
-              <div className="admin-items">
-                {data.recorders.map((recorder) => (
-                  <button
-                    key={recorder.id}
-                    onClick={() => setRecorderId(recorder.id)}
-                    aria-pressed={recorderId === recorder.id}
-                  >
-                    <span>
-                      <strong>{recorder.name}</strong>
-                      <small>
-                        {recorder.paired_at
-                          ? "Paired local service"
-                          : "Ready to pair"}
-                      </small>
-                    </span>
-                    <span className="status-tag">
-                      {recorderOnline(recorder) ? "Connected" : "Offline"}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {!data.recorders.length && (
-                <p className="form-note">
-                  Add an entry for the computer that will connect to the venue
-                  cameras.
-                </p>
-              )}
-            </section>
-            <section className="admin-card">
-              <h2>{recorderId ? "Edit recorder" : "Add a venue recorder"}</h2>
-              <RecorderForm
-                key={recorderId}
-                recorder={data.recorders.find((r) => r.id === recorderId)}
-              />
-              {data.recorders
-                .filter((r) => r.id === recorderId)
-                .map((recorder) => (
-                  <RecorderControls
-                    key={recorder.id}
-                    recorder={recorder}
-                    data={data}
-                    onRegister={(selected) => {
-                      setCameraId("");
-                      setDevice(selected);
-                      document
-                        .getElementById("camera-form")
-                        ?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                  />
-                ))}
-            </section>
-          </div>
-        </>
+        </section>
       )}
 
       {tab === "settings" && <KioskControls />}
@@ -799,12 +867,25 @@ export default function AdminDashboard({ data }: { data: AdminData }) {
                           </p>
                           <p>Reason: {session.stop_reason || "—"}</p>
                           <p>Failure stage: {session.failure_stage || "—"}</p>
-                          {(session.status === "local_ready" || ["upload","sharing"].includes(session.failure_stage || "")) && <DriveRetry sessionId={session.id}/>}
-                          {session.status === "ready" && <a className="sign-in" target="_blank" rel="noopener noreferrer" href={`/api/recordings/${session.id}/playback`}>View on Google Drive</a>}
+                          {(session.status === "local_ready" ||
+                            ["upload", "sharing"].includes(
+                              session.failure_stage || "",
+                            )) && <DriveRetry sessionId={session.id} />}
+                          {session.status === "ready" && (
+                            <a
+                              className="sign-in"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              href={`/api/recordings/${session.id}/playback`}
+                            >
+                              View on Google Drive
+                            </a>
+                          )}
                           {session.status === "local_ready" && (
                             <p>
                               Video saved on the venue recorder in its protected
-                              captures folder, under this session ID. Connect Google Drive in Settings to upload it.
+                              captures folder, under this session ID. Connect
+                              Google Drive in Settings to upload it.
                             </p>
                           )}
                         </details>

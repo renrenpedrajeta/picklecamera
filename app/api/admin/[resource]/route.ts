@@ -74,7 +74,7 @@ export async function POST(
         400,
       );
     }
-    return json({ ok: true });
+    return json({ ok: true, id: result.data.id });
   } catch (error) {
     return json(
       {
